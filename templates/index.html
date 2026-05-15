@@ -438,6 +438,8 @@
       <button type="button" class="btn btn-primary" onclick="switchTab('trending')">Browse Ideas</button>
     </div>
 
+    <div id="script-error" class="alert alert-error hidden"></div>
+
     <div id="script-loading" class="loading hidden">
       <div class="spinner"></div>
       <p>Writing your full video script…</p>
@@ -698,23 +700,26 @@
 
     hide('script-empty');
     hide('script-results');
+    hide('script-error');
     show('script-loading');
 
     try {
-      const res  = await fetch('/api/generate-script', {
+      const res = await fetch('/api/generate-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(idea)
       });
-      const data = await res.json();
+      // Parse JSON first so we can show the actual server error message
+      let data;
+      try { data = await res.json(); }
+      catch { throw new Error('Server returned an unreadable response. Please try again.'); }
+
       if (!res.ok) {
-        alert('Error: ' + (data.error || 'Something went wrong.'));
-        show('script-empty'); return;
+        throw new Error(data.error || 'Something went wrong. Please try again.');
       }
       renderScript(data);
-    } catch {
-      alert('Network error — please try again.');
-      show('script-empty');
+    } catch (err) {
+      showScriptError(err.message);
     } finally {
       hide('script-loading');
     }
@@ -751,6 +756,13 @@
     el.textContent = '⚠️  ' + msg;
     show(section + '-error');
     if (section === 'trending') show('trending-empty');
+  }
+
+  function showScriptError(msg) {
+    const el = $('script-error');
+    el.textContent = '⚠️  ' + msg;
+    show('script-error');
+    show('script-empty');
   }
 
   // ── XSS-safe escaping ─────────────────────────────────────────────────────
