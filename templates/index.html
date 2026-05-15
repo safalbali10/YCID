@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Channel Intelligence Dashboard</title>
+  <style>
+    /* ── Design tokens ─────────────────────────── */
+    :root {
+      --bg:           #06060f;
+      --card:         #0e0e20;
+      --card-border:  rgba(139, 92, 246, 0.18);
+      --primary:      #7c3aed;
+      --primary-lite: #a78bfa;
+      --blue:         #3b82f6;
+      --text:         #e2e8f0;
+      --muted:        #94a3b8;
+      --green:        #10b981;
+      --amber:        #f59e0b;
+      --red:          #ef4444;
+      --grad:         linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+    }
+
+    /* ── Reset & base ──────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ────────────────────────────────── */
+    .header {
+      text-align: center;
+      padding: 1.75rem 1.5rem 1.25rem;
+      background: linear-gradient(180deg, rgba(124,58,237,.14) 0%, transparent 100%);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(18px);
+    }
+    .header h1 {
+      font-size: clamp(1.25rem, 3vw, 1.75rem);
+      font-weight: 800;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header p { color: var(--muted); font-size: .78rem; margin-top: .3rem; }
+
+    /* ── Tab bar ───────────────────────────────── */
+    .tabs {
+      display: flex; justify-content: center; gap: .5rem;
+      padding: 1.25rem 1rem .25rem; flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: .55rem 1.25rem; border-radius: 50px;
+      border: 1px solid var(--card-border);
+      background: var(--card); color: var(--muted);
+      cursor: pointer; font-size: .85rem; font-weight: 500;
+      transition: all .2s;
+    }
+    .tab-btn:hover { border-color: var(--primary); color: var(--primary-lite); }
+    .tab-btn.active { background: var(--grad); border-color: transparent; color: #fff; }
+
+    /* ── Layout ────────────────────────────────── */
+    .content { max-width: 880px; margin: 1.75rem auto; padding: 0 1.25rem; }
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── Cards ─────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px; padding: 1.4rem; margin-bottom: 1.25rem;
+    }
+    .card-title {
+      font-size: .9rem; font-weight: 700; color: var(--primary-lite);
+      margin-bottom: 1rem; display: flex; align-items: center; gap: .4rem;
+    }
+
+    /* ── Input row ─────────────────────────────── */
+    .input-row { display: flex; gap: .6rem; margin-bottom: 1rem; }
+    .url-input {
+      flex: 1; padding: .8rem 1rem;
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--card-border); border-radius: 12px;
+      color: var(--text); font-size: .9rem; outline: none;
+      transition: border-color .2s;
+    }
+    .url-input:focus { border-color: var(--primary); }
+    .url-input::placeholder { color: var(--muted); }
+
+    /* ── Buttons ───────────────────────────────── */
+    .btn {
+      padding: .8rem 1.4rem; border-radius: 12px;
+      font-weight: 600; font-size: .875rem;
+      cursor: pointer; transition: all .15s; border: none;
+    }
+    .btn-primary { background: var(--grad); color: #fff; }
+    .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover { border-color: var(--muted); color: var(--text); }
+
+    /* ── Spinner ───────────────────────────────── */
+    .loading {
+      display: flex; flex-direction: column;
+      align-items: center; padding: 3rem; gap: 1rem; color: var(--muted);
+    }
+    .spinner {
+      width: 38px; height: 38px;
+      border: 3px solid rgba(124,58,237,.2);
+      border-top-color: var(--primary);
+      border-radius: 50%; animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Alert boxes ───────────────────────────── */
+    .alert {
+      padding: .75rem 1rem; border-radius: 10px;
+      font-size: .825rem; line-height: 1.5; margin-bottom: 1.25rem;
+    }
+    .alert-error   { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.3);  color: #fca5a5; }
+    .alert-success { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: #6ee7b7; }
+
+    /* ── Video info card ───────────────────────── */
+    .video-row { display: flex; gap: 1rem; align-items: flex-start; }
+    .video-thumb {
+      width: 152px; height: 86px; border-radius: 8px;
+      object-fit: cover; flex-shrink: 0;
+    }
+    .video-details h3 { font-size: .9rem; font-weight: 600; line-height: 1.4; margin-bottom: .5rem; }
+    .meta-row { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: .5rem; }
+    .meta { font-size: .78rem; color: var(--muted); }
+    .summary-text { font-size: .82rem; color: var(--muted); font-style: italic; }
+
+    /* ── SEO score ─────────────────────────────── */
+    .score-wrap { display: flex; align-items: center; gap: 2rem; flex-wrap: wrap; }
+    .score-ring {
+      width: 96px; height: 96px; border-radius: 50%; flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .score-num  { font-size: 2rem; font-weight: 800; }
+    .score-sub  { font-size: .6rem; color: var(--muted); }
+    .score-expl { font-size: .855rem; color: var(--muted); line-height: 1.65; }
+
+    /* ── Tag chips ─────────────────────────────── */
+    .chips { display: flex; flex-wrap: wrap; gap: .45rem; }
+    .chip {
+      padding: .3rem .7rem; border-radius: 50px;
+      font-size: .78rem;
+    }
+    .chip-purple {
+      background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.3);
+      color: var(--primary-lite);
+    }
+    .chip-green {
+      background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.3);
+      color: #6ee7b7;
+    }
+
+    /* ── Suggestion list ───────────────────────── */
+    .sug-list { list-style: none; display: flex; flex-direction: column; gap: .65rem; }
+    .sug-item {
+      padding: .7rem .9rem; background: rgba(255,255,255,.04);
+      border-radius: 9px; border-left: 3px solid var(--primary);
+      font-size: .855rem; line-height: 1.5;
+    }
+
+    /* ── Prose text ────────────────────────────── */
+    .prose { font-size: .855rem; color: var(--muted); line-height: 1.7; }
+
+    /* ── Divider ───────────────────────────────── */
+    .divider { height: 1px; background: var(--card-border); margin: 1.25rem 0; }
+
+    /* ── Trending section label ─────────────────── */
+    .sec-label {
+      font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .09em;
+      color: var(--muted); margin-bottom: .85rem;
+    }
+
+    /* ── Ideas grid ────────────────────────────── */
+    .ideas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: .9rem; margin-bottom: .5rem;
+    }
+    .idea-card {
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--card-border); border-radius: 12px;
+      padding: .95rem; cursor: pointer; transition: all .2s;
+    }
+    .idea-card:hover {
+      border-color: var(--primary);
+      background: rgba(124,58,237,.09);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(124,58,237,.15);
+    }
+    .idea-title {
+      font-size: .855rem; font-weight: 600;
+      line-height: 1.4; margin-bottom: .45rem;
+    }
+    .idea-tagline {
+      font-size: .77rem; color: var(--muted);
+      line-height: 1.5; margin-bottom: .7rem;
+    }
+    .idea-footer { display: flex; justify-content: space-between; align-items: center; }
+    .badge {
+      font-size: .68rem; padding: .18rem .55rem;
+      border-radius: 50px; font-weight: 600;
+    }
+    .badge-amber {
+      background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.3);
+      color: #fcd34d;
+    }
+    .badge-blue {
+      background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3);
+      color: #93c5fd;
+    }
+    .why { font-size: .7rem; color: #6ee7b7; }
+
+    /* ── Script display ────────────────────────── */
+    .script-part { margin-bottom: 1.1rem; }
+    .part-label {
+      font-size: .7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .09em;
+      color: var(--primary-lite); margin-bottom: .45rem;
+    }
+    .part-text {
+      font-size: .865rem; line-height: 1.75; color: var(--text);
+      padding: .75rem; background: rgba(255,255,255,.04); border-radius: 8px;
+    }
+    .part-dir {
+      font-size: .775rem; color: var(--muted); font-style: italic;
+      padding: .45rem .75rem;
+      border-left: 2px solid rgba(124,58,237,.3);
+      margin-top: .45rem;
+    }
+
+    /* ── Modal ─────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.8); backdrop-filter: blur(5px);
+      z-index: 200; display: flex; align-items: center;
+      justify-content: center; padding: 1rem;
+    }
+    .modal {
+      background: var(--card); border: 1px solid var(--card-border);
+      border-radius: 18px; padding: 1.75rem; max-width: 480px; width: 100%;
+    }
+    .modal h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: .5rem; }
+    .modal-idea {
+      color: var(--primary-lite); font-size: .85rem; line-height: 1.45;
+      margin-bottom: 1.25rem; padding: .65rem .85rem;
+      background: rgba(124,58,237,.1); border-radius: 8px;
+    }
+    .modal-hint { font-size: .815rem; color: var(--muted); margin-bottom: 1.4rem; }
+    .modal-actions { display: flex; gap: .75rem; justify-content: flex-end; }
+
+    /* ── Empty state ───────────────────────────── */
+    .empty {
+      text-align: center; padding: 3.5rem 1rem; color: var(--muted);
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: .75rem; }
+    .empty p { font-size: .875rem; margin-bottom: 1.5rem; }
+
+    /* ── Utility ───────────────────────────────── */
+    .hidden { display: none !important; }
+    .refresh-row { display: flex; justify-content: space-between; align-items: center; }
+
+    /* ── Responsive ────────────────────────────── */
+    @media (max-width: 600px) {
+      .video-row { flex-direction: column; }
+      .video-thumb { width: 100%; height: auto; aspect-ratio: 16/9; }
+      .ideas-grid { grid-template-columns: 1fr; }
+      .input-row { flex-direction: column; }
+      .score-wrap { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── Header ─────────────────────────────────────────────────────────── -->
+<div class="header">
+  <h1>YouTube Channel Intelligence Dashboard</h1>
+  <p>Powered by Claude AI · YouTube Data API v3</p>
+</div>
+
+<!-- ─── Tab bar ────────────────────────────────────────────────────────── -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('analyser')">🔍 Video Analyser</button>
+  <button class="tab-btn" onclick="switchTab('trending')">🔥 Trending Ideas</button>
+  <button class="tab-btn" onclick="switchTab('script')">📝 Script Generator</button>
+</div>
+
+<!-- ─── Main content ───────────────────────────────────────────────────── -->
+<div class="content">
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 1 — VIDEO ANALYSER
+  ══════════════════════════════════════════════════════════════════ -->
+  <div id="section-analyser" class="section active">
+
+    <div class="card">
+      <div class="card-title">🔍 Analyse a YouTube Video</div>
+      <div class="input-row">
+        <input id="video-url" class="url-input"
+          type="text"
+          placeholder="Paste YouTube URL here… e.g. https://youtu.be/abc123"
+          onkeydown="if(event.key==='Enter') analyseVideo()" />
+        <button id="analyse-btn" class="btn btn-primary" onclick="analyseVideo()">Analyse</button>
+      </div>
+      <p style="font-size:.78rem;color:var(--muted)">Supports youtube.com/watch?v=… and youtu.be/… links</p>
+    </div>
+
+    <div id="analyser-loading" class="loading hidden">
+      <div class="spinner"></div>
+      <p>Fetching video data and running AI analysis…</p>
+    </div>
+
+    <div id="analyser-error" class="alert alert-error hidden"></div>
+
+    <div id="analyser-results" class="hidden">
+
+      <!-- Video details -->
+      <div class="card">
+        <div class="card-title">📹 Video Details</div>
+        <div class="video-row">
+          <img id="vid-thumb" class="video-thumb" src="" alt="thumbnail" />
+          <div class="video-details">
+            <h3 id="vid-title"></h3>
+            <div class="meta-row">
+              <span class="meta">📺 <span id="vid-channel"></span></span>
+              <span class="meta">👁️ <span id="vid-views"></span> views</span>
+              <span class="meta">👍 <span id="vid-likes"></span> likes</span>
+            </div>
+            <span class="summary-text" id="vid-summary"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEO Score -->
+      <div class="card">
+        <div class="card-title">📊 SEO Score</div>
+        <div class="score-wrap">
+          <div class="score-ring" id="score-ring">
+            <span class="score-num" id="score-num"></span>
+            <span class="score-sub">/ 10</span>
+          </div>
+          <p class="score-expl" id="score-expl"></p>
+        </div>
+      </div>
+
+      <!-- Title suggestions -->
+      <div class="card">
+        <div class="card-title">✏️ Better Title Suggestions</div>
+        <ul class="sug-list" id="title-sugs"></ul>
+      </div>
+
+      <!-- Recommended tags -->
+      <div class="card">
+        <div class="card-title">🏷️ 5 Recommended Tags</div>
+        <div class="chips" id="better-tags"></div>
+      </div>
+
+      <!-- Thumbnail concept -->
+      <div class="card">
+        <div class="card-title">🖼️ Thumbnail Concept</div>
+        <p class="prose" id="thumb-concept"></p>
+      </div>
+
+      <!-- Reach potential -->
+      <div class="card">
+        <div class="card-title">🚀 Reach Potential</div>
+        <p class="prose" id="reach-potential"></p>
+      </div>
+
+    </div><!-- /analyser-results -->
+  </div><!-- /section-analyser -->
+
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 2 — TRENDING IDEAS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div id="section-trending" class="section">
+
+    <div class="card">
+      <div class="refresh-row">
+        <div>
+          <div class="card-title" style="margin-bottom:.2rem">🔥 Trending Video Ideas</div>
+          <p style="font-size:.78rem;color:var(--muted)">Top trending Education videos on YouTube India · analysed by Claude</p>
+        </div>
+        <button class="btn btn-primary" onclick="loadTrending()">Refresh</button>
+      </div>
+    </div>
+
+    <div id="trending-loading" class="loading hidden">
+      <div class="spinner"></div>
+      <p>Fetching trending videos and generating ideas…</p>
+    </div>
+
+    <div id="trending-error" class="alert alert-error hidden"></div>
+
+    <div id="trending-results" class="hidden">
+      <div class="card">
+        <div class="sec-label">⚡ Short Form — 1-2 mins &nbsp;·&nbsp; Click a title to generate a script</div>
+        <div class="ideas-grid" id="short-grid"></div>
+      </div>
+      <div class="card">
+        <div class="sec-label">🎬 Long Form — 7-10 mins &nbsp;·&nbsp; Click a title to generate a script</div>
+        <div class="ideas-grid" id="long-grid"></div>
+      </div>
+    </div>
+
+    <div id="trending-empty" class="empty">
+      <div class="empty-icon">💡</div>
+      <p>Generate trending video ideas based on what's hot in YouTube India right now.</p>
+      <button class="btn btn-primary" onclick="loadTrending()">Generate Ideas</button>
+    </div>
+
+  </div><!-- /section-trending -->
+
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 3 — SCRIPT GENERATOR
+  ══════════════════════════════════════════════════════════════════ -->
+  <div id="section-script" class="section">
+
+    <div id="script-empty" class="empty">
+      <div class="empty-icon">📝</div>
+      <p>Go to Trending Ideas and click any video title to generate a full script.</p>
+      <button class="btn btn-primary" onclick="switchTab('trending')">Browse Ideas</button>
+    </div>
+
+    <div id="script-loading" class="loading hidden">
+      <div class="spinner"></div>
+      <p>Writing your full video script…</p>
+    </div>
+
+    <div id="script-results" class="hidden">
+      <div class="card">
+        <div class="card-title">📝 Full Video Script</div>
+        <h3 id="script-title" style="font-size:.92rem;margin-bottom:1.4rem;color:var(--text)"></h3>
+
+        <!-- Hook -->
+        <div class="script-part">
+          <div class="part-label">🎣 Hook — 0 to 15 seconds</div>
+          <div class="part-text" id="s-hook"></div>
+          <div class="part-dir"  id="s-hook-dir"></div>
+        </div>
+        <div class="divider"></div>
+
+        <!-- Intro -->
+        <div class="script-part">
+          <div class="part-label">👋 Intro</div>
+          <div class="part-text" id="s-intro"></div>
+          <div class="part-dir"  id="s-intro-dir"></div>
+        </div>
+        <div class="divider"></div>
+
+        <!-- Body (rendered dynamically) -->
+        <div id="s-body"></div>
+
+        <!-- CTA -->
+        <div class="divider"></div>
+        <div class="script-part">
+          <div class="part-label">📢 Call to Action</div>
+          <div class="part-text" id="s-cta"></div>
+          <div class="part-dir"  id="s-cta-dir"></div>
+        </div>
+        <div class="divider"></div>
+
+        <!-- Outro -->
+        <div class="script-part">
+          <div class="part-label">🎬 Outro</div>
+          <div class="part-text" id="s-outro"></div>
+          <div class="part-dir"  id="s-outro-dir"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /section-script -->
+
+</div><!-- /content -->
+
+
+<!-- ─── Script-confirm modal ───────────────────────────────────────────── -->
+<div id="modal" class="overlay hidden">
+  <div class="modal">
+    <h3>Generate script for this?</h3>
+    <div class="modal-idea" id="modal-idea-title"></div>
+    <p class="modal-hint">Claude will write a full production script: hook, intro, body sections, CTA and outro.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary"   onclick="confirmScript()">Yes, Generate ✨</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─── JavaScript ─────────────────────────────────────────────────────── -->
+<script>
+  // Pending idea data stored when user clicks an idea card
+  let pendingIdea = null;
+
+  // ── Utilities ────────────────────────────────────────────────────────────
+
+  function $(id) { return document.getElementById(id); }
+  function show(id) { $(id).classList.remove('hidden'); }
+  function hide(id) { $(id).classList.add('hidden'); }
+  function fmtNum(n) { return parseInt(n).toLocaleString('en-IN'); }
+
+  // Safely set text content (never innerHTML from API data)
+  function setText(id, val) { $(id).textContent = val; }
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+
+  function switchTab(tab) {
+    const tabs = ['analyser', 'trending', 'script'];
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', tabs[i] === tab);
+    });
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    show('section-' + tab);
+  }
+
+  // ── Section 1: Video Analyser ─────────────────────────────────────────────
+
+  async function analyseVideo() {
+    const url = $('video-url').value.trim();
+    if (!url) { showError('analyser', 'Please paste a YouTube URL first.'); return; }
+
+    hide('analyser-results');
+    hide('analyser-error');
+    show('analyser-loading');
+    $('analyse-btn').disabled = true;
+
+    try {
+      const res  = await fetch('/api/analyze-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      if (!res.ok) { showError('analyser', data.error || 'Something went wrong.'); return; }
+      renderAnalyser(data);
+    } catch {
+      showError('analyser', 'Network error — please check your connection.');
+    } finally {
+      hide('analyser-loading');
+      $('analyse-btn').disabled = false;
+    }
+  }
+
+  function renderAnalyser({ video_data: v, analysis: a }) {
+    // Video info
+    $('vid-thumb').src = v.thumbnail;
+    setText('vid-title',   v.title);
+    setText('vid-channel', v.channel);
+    setText('vid-views',   fmtNum(v.views));
+    setText('vid-likes',   fmtNum(v.likes));
+    setText('vid-summary', a.summary);
+
+    // SEO score ring
+    const score = a.seo_score;
+    const color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+    $('score-ring').style.background =
+      `conic-gradient(${color} ${score * 36}deg, rgba(255,255,255,.06) 0deg)`;
+    $('score-ring').style.boxShadow = `0 0 24px ${color}44`;
+    $('score-num').textContent  = score;
+    $('score-num').style.color  = color;
+    setText('score-expl', a.seo_explanation);
+
+    // Title suggestions
+    $('title-sugs').innerHTML = a.title_suggestions
+      .map(t => `<li class="sug-item">${escapeHTML(t)}</li>`)
+      .join('');
+
+    // Better tags
+    $('better-tags').innerHTML = a.better_tags
+      .map(t => `<span class="chip chip-green">${escapeHTML(t)}</span>`)
+      .join('');
+
+    // Prose fields
+    setText('thumb-concept',   a.thumbnail_concept);
+    setText('reach-potential', a.reach_potential);
+
+    show('analyser-results');
+  }
+
+  // ── Section 2: Trending Ideas ─────────────────────────────────────────────
+
+  async function loadTrending() {
+    hide('trending-empty');
+    hide('trending-results');
+    hide('trending-error');
+    show('trending-loading');
+
+    try {
+      const res  = await fetch('/api/trending');
+      const data = await res.json();
+      if (!res.ok) { showError('trending', data.error || 'Something went wrong.'); return; }
+      renderTrending(data);
+    } catch {
+      showError('trending', 'Network error — please check your connection.');
+    } finally {
+      hide('trending-loading');
+    }
+  }
+
+  function renderTrending({ short_form_ideas, long_form_ideas }) {
+    $('short-grid').innerHTML = short_form_ideas.map(idea =>
+      ideaCardHTML(idea, 'badge-amber')
+    ).join('');
+
+    $('long-grid').innerHTML = long_form_ideas.map(idea =>
+      ideaCardHTML(idea, 'badge-blue')
+    ).join('');
+
+    show('trending-results');
+  }
+
+  function ideaCardHTML(idea, badgeClass) {
+    // Store idea data in data-attributes — safer than inline strings
+    const title   = escapeAttr(idea.title);
+    const tagline = escapeAttr(idea.tagline);
+    const dur     = escapeAttr(idea.duration);
+    const why     = escapeHTML(idea.why_trending || '🔥 Trending');
+    return `
+      <div class="idea-card"
+           data-title="${title}" data-tagline="${tagline}" data-duration="${dur}"
+           onclick="openModal(this)">
+        <div class="idea-title">${escapeHTML(idea.title)}</div>
+        <div class="idea-tagline">${escapeHTML(idea.tagline)}</div>
+        <div class="idea-footer">
+          <span class="badge ${badgeClass}">${escapeHTML(idea.duration)}</span>
+          <span class="why">${why}</span>
+        </div>
+      </div>`;
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+
+  function openModal(el) {
+    pendingIdea = {
+      title:    el.dataset.title,
+      tagline:  el.dataset.tagline,
+      duration: el.dataset.duration
+    };
+    setText('modal-idea-title', pendingIdea.title);
+    show('modal');
+  }
+
+  function closeModal() {
+    hide('modal');
+    pendingIdea = null;
+  }
+
+  // Close modal if user clicks the dark overlay (not the card itself)
+  $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+
+  // ── Section 3: Script Generator ───────────────────────────────────────────
+
+  async function confirmScript() {
+    const idea = pendingIdea;   // capture before closing resets it
+    closeModal();
+    switchTab('script');
+    if (!idea) return;
+
+    hide('script-empty');
+    hide('script-results');
+    show('script-loading');
+
+    try {
+      const res  = await fetch('/api/generate-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(idea)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Error: ' + (data.error || 'Something went wrong.'));
+        show('script-empty'); return;
+      }
+      renderScript(data);
+    } catch {
+      alert('Network error — please try again.');
+      show('script-empty');
+    } finally {
+      hide('script-loading');
+    }
+  }
+
+  function renderScript({ script: s, title }) {
+    setText('script-title',  title);
+    setText('s-hook',        s.hook.text);
+    setText('s-hook-dir',    '📌 ' + s.hook.direction);
+    setText('s-intro',       s.intro.text);
+    setText('s-intro-dir',   '📌 ' + s.intro.direction);
+
+    $('s-body').innerHTML = s.body.map((sec, i) => `
+      <div class="script-part">
+        <div class="part-label">📖 ${escapeHTML(sec.section)}</div>
+        <div class="part-text">${escapeHTML(sec.text)}</div>
+        <div class="part-dir">📌 ${escapeHTML(sec.direction)}</div>
+      </div>
+      ${i < s.body.length - 1 ? '<div class="divider"></div>' : ''}
+    `).join('');
+
+    setText('s-cta',       s.cta.text);
+    setText('s-cta-dir',   '📌 ' + s.cta.direction);
+    setText('s-outro',     s.outro.text);
+    setText('s-outro-dir', '📌 ' + s.outro.direction);
+
+    show('script-results');
+  }
+
+  // ── Error helpers ─────────────────────────────────────────────────────────
+
+  function showError(section, msg) {
+    const el = $(section + '-error');
+    el.textContent = '⚠️  ' + msg;
+    show(section + '-error');
+    if (section === 'trending') show('trending-empty');
+  }
+
+  // ── XSS-safe escaping ─────────────────────────────────────────────────────
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function escapeAttr(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;').replace(/</g, '&lt;');
+  }
+</script>
+</body>
+</html>
