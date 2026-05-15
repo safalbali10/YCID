@@ -16,13 +16,20 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Support both ANTHROPIC_API_KEY and YT_ANTHROPIC_API_KEY variable names
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY', '').strip()
-ANTHROPIC_API_KEY = (os.getenv('ANTHROPIC_API_KEY') or os.getenv('YT_ANTHROPIC_API_KEY', '')).strip()
-
-# Create Anthropic client once at startup
-claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 MODEL = "claude-sonnet-4-6"
+
+# Lazy-initialized — created on the first request, not at import time.
+# This ensures env vars are fully settled before we read them.
+_claude = None
+
+def get_claude():
+    """Return the shared Anthropic client, creating it on first call."""
+    global _claude
+    if _claude is None:
+        api_key = (os.getenv('ANTHROPIC_API_KEY') or os.getenv('YT_ANTHROPIC_API_KEY', '')).strip()
+        _claude = anthropic.Anthropic(api_key=api_key)
+    return _claude
 
 
 # ─── Helper functions ────────────────────────────────────────────────────────
@@ -86,9 +93,11 @@ def index():
 @app.route('/debug')
 def debug():
     """Shows whether API keys are loaded — never exposes the actual values."""
+    yt  = os.getenv('YOUTUBE_API_KEY', '').strip()
+    ai  = (os.getenv('ANTHROPIC_API_KEY') or os.getenv('YT_ANTHROPIC_API_KEY', '')).strip()
     return jsonify({
-        'YOUTUBE_API_KEY':    'loaded' if YOUTUBE_API_KEY    else 'MISSING',
-        'YT_ANTHROPIC_API_KEY': 'loaded' if ANTHROPIC_API_KEY else 'MISSING',
+        'YOUTUBE_API_KEY':      'loaded' if yt else 'MISSING',
+        'YT_ANTHROPIC_API_KEY': 'loaded' if ai else 'MISSING',
     })
 
 
@@ -129,7 +138,7 @@ Return this exact JSON structure:
   "summary": "<one compelling sentence summarising the video>"
 }}"""
 
-        message = claude.messages.create(
+        message = get_claude().messages.create(
             model=MODEL,
             max_tokens=1500,
             messages=[{'role': 'user', 'content': prompt}]
@@ -215,7 +224,7 @@ Based on these trends, suggest creative viral ideas. Return ONLY valid JSON — 
 
 Generate EXACTLY 7 short_form_ideas and EXACTLY 3 long_form_ideas. Titles must be emotionally compelling Indian English style."""
 
-        message = claude.messages.create(
+        message = get_claude().messages.create(
             model=MODEL,
             max_tokens=2500,
             messages=[{'role': 'user', 'content': prompt}]
@@ -282,7 +291,7 @@ Return ONLY valid JSON — no markdown:
 
 Include 3-4 body sections. Keep it conversational and perfect for an Indian English learning audience."""
 
-        message = claude.messages.create(
+        message = get_claude().messages.create(
             model=MODEL,
             max_tokens=3500,
             messages=[{'role': 'user', 'content': prompt}]
