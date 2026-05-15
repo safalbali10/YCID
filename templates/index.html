@@ -294,9 +294,9 @@
 
 <!-- ─── Tab bar ────────────────────────────────────────────────────────── -->
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('analyser')">🔍 Video Analyser</button>
-  <button class="tab-btn" onclick="switchTab('trending')">🔥 Trending Ideas</button>
-  <button class="tab-btn" onclick="switchTab('script')">📝 Script Generator</button>
+  <button type="button" class="tab-btn active" onclick="switchTab('analyser')">🔍 Video Analyser</button>
+  <button type="button" class="tab-btn" onclick="switchTab('trending')">🔥 Trending Ideas</button>
+  <button type="button" class="tab-btn" onclick="switchTab('script')">📝 Script Generator</button>
 </div>
 
 <!-- ─── Main content ───────────────────────────────────────────────────── -->
@@ -314,7 +314,7 @@
           type="text"
           placeholder="Paste YouTube URL here… e.g. https://youtu.be/abc123"
           onkeydown="if(event.key==='Enter') analyseVideo()" />
-        <button id="analyse-btn" class="btn btn-primary" onclick="analyseVideo()">Analyse</button>
+        <button type="button" id="analyse-btn" class="btn btn-primary" onclick="analyseVideo()">Analyse</button>
       </div>
       <p style="font-size:.78rem;color:var(--muted)">Supports youtube.com/watch?v=… and youtu.be/… links</p>
     </div>
@@ -396,7 +396,7 @@
           <div class="card-title" style="margin-bottom:.2rem">🔥 Trending Video Ideas</div>
           <p style="font-size:.78rem;color:var(--muted)">Top trending Education videos on YouTube India · analysed by Claude</p>
         </div>
-        <button class="btn btn-primary" onclick="loadTrending()">Refresh</button>
+        <button type="button" class="btn btn-primary" onclick="loadTrending()">Refresh</button>
       </div>
     </div>
 
@@ -421,7 +421,7 @@
     <div id="trending-empty" class="empty">
       <div class="empty-icon">💡</div>
       <p>Generate trending video ideas based on what's hot in YouTube India right now.</p>
-      <button class="btn btn-primary" onclick="loadTrending()">Generate Ideas</button>
+      <button type="button" class="btn btn-primary" onclick="loadTrending()">Generate Ideas</button>
     </div>
 
   </div><!-- /section-trending -->
@@ -435,7 +435,7 @@
     <div id="script-empty" class="empty">
       <div class="empty-icon">📝</div>
       <p>Go to Trending Ideas and click any video title to generate a full script.</p>
-      <button class="btn btn-primary" onclick="switchTab('trending')">Browse Ideas</button>
+      <button type="button" class="btn btn-primary" onclick="switchTab('trending')">Browse Ideas</button>
     </div>
 
     <div id="script-loading" class="loading hidden">
@@ -497,8 +497,8 @@
     <div class="modal-idea" id="modal-idea-title"></div>
     <p class="modal-hint">Claude will write a full production script: hook, intro, body sections, CTA and outro.</p>
     <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary"   onclick="confirmScript()">Yes, Generate ✨</button>
+      <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button type="button" class="btn btn-primary"   onclick="confirmScript()">Yes, Generate ✨</button>
     </div>
   </div>
 </div>
@@ -506,8 +506,10 @@
 
 <!-- ─── JavaScript ─────────────────────────────────────────────────────── -->
 <script>
-  // Pending idea data stored when user clicks an idea card
-  let pendingIdea = null;
+  // ── State ─────────────────────────────────────────────────────────────────
+  let pendingIdea       = null;
+  let analyserHasResults = false;  // true after a successful video analysis
+  let trendingHasResults = false;  // true after trending ideas load successfully
 
   // ── Utilities ────────────────────────────────────────────────────────────
 
@@ -515,19 +517,34 @@
   function show(id) { $(id).classList.remove('hidden'); }
   function hide(id) { $(id).classList.add('hidden'); }
   function fmtNum(n) { return parseInt(n).toLocaleString('en-IN'); }
-
-  // Safely set text content (never innerHTML from API data)
   function setText(id, val) { $(id).textContent = val; }
 
   // ── Tab switching ─────────────────────────────────────────────────────────
 
   function switchTab(tab) {
+    // Update tab button styles
     const tabs = ['analyser', 'trending', 'script'];
     document.querySelectorAll('.tab-btn').forEach((btn, i) => {
       btn.classList.toggle('active', tabs[i] === tab);
     });
+
+    // Bug fix: section visibility is controlled by the 'active' CSS class, not
+    // 'hidden'. We must add 'active' back to the target section — not just
+    // remove 'hidden' (which was never on sections in the first place).
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    show('section-' + tab);
+    $('section-' + tab).classList.add('active');
+
+    // Restore results visibility when the user returns to a tab.
+    // display:none preserves DOM/input state, but we also track a flag
+    // in case the analyser-results div was hidden mid-flow.
+    if (tab === 'analyser' && analyserHasResults) {
+      show('analyser-results');
+    }
+    if (tab === 'trending' && trendingHasResults) {
+      show('trending-results');
+      hide('trending-empty');
+      hide('trending-error');
+    }
   }
 
   // ── Section 1: Video Analyser ─────────────────────────────────────────────
@@ -591,6 +608,7 @@
     setText('thumb-concept',   a.thumbnail_concept);
     setText('reach-potential', a.reach_potential);
 
+    analyserHasResults = true;
     show('analyser-results');
   }
 
@@ -614,15 +632,20 @@
     }
   }
 
-  function renderTrending({ short_form_ideas, long_form_ideas }) {
-    $('short-grid').innerHTML = short_form_ideas.map(idea =>
-      ideaCardHTML(idea, 'badge-amber')
-    ).join('');
+  function renderTrending(data) {
+    // Validate before calling .map() — Claude occasionally returns a different shape
+    const shorts = Array.isArray(data.short_form_ideas) ? data.short_form_ideas : [];
+    const longs  = Array.isArray(data.long_form_ideas)  ? data.long_form_ideas  : [];
 
-    $('long-grid').innerHTML = long_form_ideas.map(idea =>
-      ideaCardHTML(idea, 'badge-blue')
-    ).join('');
+    if (shorts.length === 0 && longs.length === 0) {
+      showError('trending', 'No ideas returned. Please try refreshing.');
+      return;
+    }
 
+    $('short-grid').innerHTML = shorts.map(idea => ideaCardHTML(idea, 'badge-amber')).join('');
+    $('long-grid').innerHTML  = longs.map(idea  => ideaCardHTML(idea, 'badge-blue')).join('');
+
+    trendingHasResults = true;
     show('trending-results');
   }
 

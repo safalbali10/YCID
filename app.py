@@ -35,9 +35,9 @@ def get_claude():
 # ─── Helper functions ────────────────────────────────────────────────────────
 
 def extract_video_id(url):
-    """Pull the 11-character video ID out of any YouTube URL format."""
+    """Pull the 11-character video ID out of any YouTube URL format, including Shorts."""
     patterns = [
-        r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([0-9A-Za-z_-]{11})',
+        r'(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)([0-9A-Za-z_-]{11})',
         r'[?&]v=([0-9A-Za-z_-]{11})',
     ]
     for pattern in patterns:
