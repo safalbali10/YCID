@@ -83,6 +83,15 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/debug')
+def debug():
+    """Shows whether API keys are loaded — never exposes the actual values."""
+    return jsonify({
+        'YOUTUBE_API_KEY':    'loaded' if YOUTUBE_API_KEY    else 'MISSING',
+        'YT_ANTHROPIC_API_KEY': 'loaded' if ANTHROPIC_API_KEY else 'MISSING',
+    })
+
+
 @app.route('/api/analyze-video', methods=['POST'])
 def analyze_video():
     """
