@@ -274,10 +274,39 @@
     .hidden { display: none !important; }
     .refresh-row { display: flex; justify-content: space-between; align-items: center; }
 
+    /* ── Language selector buttons (in modal) ──── */
+    .lang-btn {
+      padding: .45rem .9rem; border-radius: 8px;
+      font-size: .8rem; font-weight: 500; cursor: pointer;
+      border: 1px solid var(--card-border);
+      background: rgba(255,255,255,.04); color: var(--muted);
+      transition: all .15s;
+    }
+    .lang-btn.active {
+      background: rgba(124,58,237,.2);
+      border-color: var(--primary);
+      color: var(--primary-lite);
+    }
+    .lang-btn:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+
+    /* ── Channel avatar (circular thumbnail) ───── */
+    .ch-avatar {
+      width: 86px; height: 86px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0;
+    }
+
+    /* ── Growth hack number badge ───────────────── */
+    .hack-num {
+      font-size: 1.6rem; font-weight: 800;
+      color: var(--primary); min-width: 2.25rem;
+      text-align: center; line-height: 1;
+    }
+
     /* ── Responsive ────────────────────────────── */
     @media (max-width: 600px) {
       .video-row { flex-direction: column; }
       .video-thumb { width: 100%; height: auto; aspect-ratio: 16/9; }
+      .ch-avatar { width: 64px; height: 64px; }
       .ideas-grid { grid-template-columns: 1fr; }
       .input-row { flex-direction: column; }
       .score-wrap { flex-direction: column; align-items: flex-start; }
@@ -294,9 +323,11 @@
 
 <!-- ─── Tab bar ────────────────────────────────────────────────────────── -->
 <div class="tabs">
-  <button type="button" class="tab-btn active" onclick="switchTab('analyser')">🔍 Video Analyser</button>
-  <button type="button" class="tab-btn" onclick="switchTab('trending')">🔥 Trending Ideas</button>
-  <button type="button" class="tab-btn" onclick="switchTab('script')">📝 Script Generator</button>
+  <button type="button" class="tab-btn active" data-tab="analyser" onclick="switchTab('analyser')">🔍 Video Analyser</button>
+  <button type="button" class="tab-btn" data-tab="channel"  onclick="switchTab('channel')">📡 Channel Analyser</button>
+  <button type="button" class="tab-btn" data-tab="trending" onclick="switchTab('trending')">🔥 Trending Ideas</button>
+  <button type="button" class="tab-btn" data-tab="script"   onclick="switchTab('script')">📝 Script Generator</button>
+  <button type="button" class="tab-btn" data-tab="growth"   onclick="switchTab('growth')">💡 Growth Hacks</button>
 </div>
 
 <!-- ─── Main content ───────────────────────────────────────────────────── -->
@@ -339,6 +370,7 @@
               <span class="meta">📺 <span id="vid-channel"></span></span>
               <span class="meta">👁️ <span id="vid-views"></span> views</span>
               <span class="meta">👍 <span id="vid-likes"></span> likes</span>
+              <span class="meta">🌐 <span id="vid-language"></span></span>
             </div>
             <span class="summary-text" id="vid-summary"></span>
           </div>
@@ -386,7 +418,90 @@
 
 
   <!-- ══════════════════════════════════════════════════════════════════
-       SECTION 2 — TRENDING IDEAS
+       SECTION 2 — CHANNEL ANALYSER
+  ══════════════════════════════════════════════════════════════════ -->
+  <div id="section-channel" class="section">
+
+    <div class="card">
+      <div class="card-title">📡 Analyse a YouTube Channel</div>
+      <div class="input-row">
+        <input id="channel-input" class="url-input"
+          type="text"
+          placeholder="Paste @handle or channel URL… e.g. @learnwithsumit"
+          onkeydown="if(event.key==='Enter') analyseChannel()" />
+        <button type="button" id="channel-btn" class="btn btn-primary" onclick="analyseChannel()">Analyse</button>
+      </div>
+      <p style="font-size:.78rem;color:var(--muted)">Supports @handle, youtube.com/@handle, or full channel URLs</p>
+    </div>
+
+    <div id="channel-loading" class="loading hidden">
+      <div class="spinner"></div>
+      <p>Fetching channel data and running AI analysis…</p>
+    </div>
+
+    <div id="channel-error" class="alert alert-error hidden"></div>
+
+    <div id="channel-results" class="hidden">
+
+      <!-- Channel overview -->
+      <div class="card">
+        <div class="card-title">📺 Channel Overview</div>
+        <div class="video-row">
+          <img id="ch-thumb" class="ch-avatar" src="" alt="channel thumbnail" />
+          <div class="video-details">
+            <h3 id="ch-name" style="font-size:1rem;margin-bottom:.5rem"></h3>
+            <div class="meta-row">
+              <span class="meta">👥 <span id="ch-subs"></span> subscribers</span>
+              <span class="meta">👁️ <span id="ch-views"></span> total views</span>
+              <span class="meta">🎬 <span id="ch-videos"></span> videos</span>
+            </div>
+            <p class="summary-text" id="ch-desc"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Channel health score -->
+      <div class="card">
+        <div class="card-title">💪 Channel Health Score</div>
+        <div class="score-wrap">
+          <div class="score-ring" id="ch-score-ring">
+            <span class="score-num" id="ch-score-num"></span>
+            <span class="score-sub">/ 10</span>
+          </div>
+          <p class="score-expl" id="ch-score-expl"></p>
+        </div>
+      </div>
+
+      <!-- Content niche -->
+      <div class="card">
+        <div class="card-title">🎯 Content Niche Analysis</div>
+        <p class="prose" id="ch-niche"></p>
+      </div>
+
+      <!-- Posting frequency -->
+      <div class="card">
+        <div class="card-title">📅 Posting Frequency Recommendation</div>
+        <p class="prose" id="ch-frequency"></p>
+      </div>
+
+      <!-- Top performing patterns -->
+      <div class="card">
+        <div class="card-title">🏆 Top Performing Video Patterns</div>
+        <ul class="sug-list" id="ch-patterns"></ul>
+      </div>
+
+      <!-- Growth opportunities -->
+      <div class="card">
+        <div class="card-title">🌱 Growth Opportunities</div>
+        <ul class="sug-list" id="ch-growth"></ul>
+      </div>
+
+    </div><!-- /channel-results -->
+  </div><!-- /section-channel -->
+
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 3 — TRENDING IDEAS (renumbered — was Section 2)
   ══════════════════════════════════════════════════════════════════ -->
   <div id="section-trending" class="section">
 
@@ -489,6 +604,41 @@
 
   </div><!-- /section-script -->
 
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       SECTION 5 — GROWTH HACKS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div id="section-growth" class="section">
+
+    <div class="card">
+      <div class="refresh-row">
+        <div>
+          <div class="card-title" style="margin-bottom:.2rem">💡 Growth Hacks</div>
+          <p style="font-size:.78rem;color:var(--muted)">10 actionable hacks for English learning channels targeting Indians · powered by Claude</p>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="loadGrowthHacks()">Generate</button>
+      </div>
+    </div>
+
+    <div id="growth-loading" class="loading hidden">
+      <div class="spinner"></div>
+      <p>Claude is crafting your personalised growth playbook…</p>
+    </div>
+
+    <div id="growth-error" class="alert alert-error hidden"></div>
+
+    <div id="growth-results" class="hidden">
+      <div id="growth-hacks-list"></div>
+    </div>
+
+    <div id="growth-empty" class="empty">
+      <div class="empty-icon">🚀</div>
+      <p>Generate 10 powerful, niche-specific growth hacks for your English learning YouTube channel.</p>
+      <button type="button" class="btn btn-primary" onclick="loadGrowthHacks()">Generate Growth Hacks</button>
+    </div>
+
+  </div><!-- /section-growth -->
+
 </div><!-- /content -->
 
 
@@ -498,6 +648,17 @@
     <h3>Generate script for this?</h3>
     <div class="modal-idea" id="modal-idea-title"></div>
     <p class="modal-hint">Claude will write a full production script: hook, intro, body sections, CTA and outro.</p>
+
+    <!-- Language selection — Feature 3: Multi-language Script Generator -->
+    <div style="margin-bottom:1.25rem">
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:.6rem">Generate script in:</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button type="button" class="lang-btn active" onclick="selectLang(this,'English')">🇬🇧 English</button>
+        <button type="button" class="lang-btn" onclick="selectLang(this,'Hindi')">🇮🇳 Hindi</button>
+        <button type="button" class="lang-btn" onclick="selectLang(this,'Hinglish')">🤝 Hinglish</button>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button type="button" class="btn btn-primary"   onclick="confirmScript()">Yes, Generate ✨</button>
@@ -509,9 +670,12 @@
 <!-- ─── JavaScript ─────────────────────────────────────────────────────── -->
 <script>
   // ── State ─────────────────────────────────────────────────────────────────
-  let pendingIdea       = null;
-  let analyserHasResults = false;  // true after a successful video analysis
-  let trendingHasResults = false;  // true after trending ideas load successfully
+  let pendingIdea        = null;
+  let selectedLanguage   = 'English';  // chosen in the script-language modal
+  let analyserHasResults = false;
+  let channelHasResults  = false;
+  let trendingHasResults = false;
+  let growthHasResults   = false;
 
   // ── Utilities ────────────────────────────────────────────────────────────
 
@@ -524,28 +688,25 @@
   // ── Tab switching ─────────────────────────────────────────────────────────
 
   function switchTab(tab) {
-    // Update tab button styles
-    const tabs = ['analyser', 'trending', 'script'];
-    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-      btn.classList.toggle('active', tabs[i] === tab);
+    // Match buttons via data-tab attribute — order-independent
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
     });
 
-    // Bug fix: section visibility is controlled by the 'active' CSS class, not
-    // 'hidden'. We must add 'active' back to the target section — not just
-    // remove 'hidden' (which was never on sections in the first place).
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     $('section-' + tab).classList.add('active');
 
-    // Restore results visibility when the user returns to a tab.
-    // display:none preserves DOM/input state, but we also track a flag
-    // in case the analyser-results div was hidden mid-flow.
-    if (tab === 'analyser' && analyserHasResults) {
-      show('analyser-results');
-    }
+    // Restore result-panel visibility when the user returns to a tab
+    if (tab === 'analyser' && analyserHasResults) show('analyser-results');
+    if (tab === 'channel'  && channelHasResults)  show('channel-results');
     if (tab === 'trending' && trendingHasResults) {
       show('trending-results');
       hide('trending-empty');
       hide('trending-error');
+    }
+    if (tab === 'growth' && growthHasResults) {
+      show('growth-results');
+      hide('growth-empty');
     }
   }
 
@@ -578,13 +739,13 @@
   }
 
   function renderAnalyser({ video_data: v, analysis: a }) {
-    // Video info
     $('vid-thumb').src = v.thumbnail;
-    setText('vid-title',   v.title);
-    setText('vid-channel', v.channel);
-    setText('vid-views',   fmtNum(v.views));
-    setText('vid-likes',   fmtNum(v.likes));
-    setText('vid-summary', a.summary);
+    setText('vid-title',    v.title);
+    setText('vid-channel',  v.channel);
+    setText('vid-views',    fmtNum(v.views));
+    setText('vid-likes',    fmtNum(v.likes));
+    setText('vid-language', a.detected_language || 'Unknown');  // Feature 2
+    setText('vid-summary',  a.summary);
 
     // SEO score ring
     const score = a.seo_score;
@@ -592,21 +753,18 @@
     $('score-ring').style.background =
       `conic-gradient(${color} ${score * 36}deg, rgba(255,255,255,.06) 0deg)`;
     $('score-ring').style.boxShadow = `0 0 24px ${color}44`;
-    $('score-num').textContent  = score;
-    $('score-num').style.color  = color;
+    $('score-num').textContent = score;
+    $('score-num').style.color = color;
     setText('score-expl', a.seo_explanation);
 
-    // Title suggestions
     $('title-sugs').innerHTML = a.title_suggestions
       .map(t => `<li class="sug-item">${escapeHTML(t)}</li>`)
       .join('');
 
-    // Better tags
     $('better-tags').innerHTML = a.better_tags
       .map(t => `<span class="chip chip-green">${escapeHTML(t)}</span>`)
       .join('');
 
-    // Prose fields
     setText('thumb-concept',   a.thumbnail_concept);
     setText('reach-potential', a.reach_potential);
 
@@ -614,7 +772,70 @@
     show('analyser-results');
   }
 
-  // ── Section 2: Trending Ideas ─────────────────────────────────────────────
+  // ── Section 2: Channel Analyser ───────────────────────────────────────────
+
+  async function analyseChannel() {
+    const channel = $('channel-input').value.trim();
+    if (!channel) { showError('channel', 'Please enter a channel URL or @handle.'); return; }
+
+    hide('channel-results');
+    hide('channel-error');
+    show('channel-loading');
+    $('channel-btn').disabled = true;
+
+    try {
+      const res  = await fetch('/api/analyze-channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel })
+      });
+      const data = await res.json();
+      if (!res.ok) { showError('channel', data.error || 'Something went wrong.'); return; }
+      renderChannel(data);
+    } catch {
+      showError('channel', 'Network error — please check your connection.');
+    } finally {
+      hide('channel-loading');
+      $('channel-btn').disabled = false;
+    }
+  }
+
+  function renderChannel({ channel_data: c, analysis: a }) {
+    $('ch-thumb').src = c.thumbnail;
+    setText('ch-name',   c.name);
+    setText('ch-subs',   fmtNum(c.subscribers));
+    setText('ch-views',  fmtNum(c.total_views));
+    setText('ch-videos', c.video_count.toLocaleString('en-IN'));
+    setText('ch-desc',   c.description);
+
+    // Health score ring (same style as SEO ring)
+    const score = a.health_score;
+    const color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+    $('ch-score-ring').style.background =
+      `conic-gradient(${color} ${score * 36}deg, rgba(255,255,255,.06) 0deg)`;
+    $('ch-score-ring').style.boxShadow = `0 0 24px ${color}44`;
+    $('ch-score-num').textContent = score;
+    $('ch-score-num').style.color = color;
+    setText('ch-score-expl', a.health_explanation);
+
+    setText('ch-niche',     a.niche_analysis);
+    setText('ch-frequency', a.posting_frequency_recommendation);
+
+    const patterns = Array.isArray(a.top_performing_patterns) ? a.top_performing_patterns : [];
+    $('ch-patterns').innerHTML = patterns
+      .map(p => `<li class="sug-item">${escapeHTML(p)}</li>`)
+      .join('');
+
+    const opps = Array.isArray(a.growth_opportunities) ? a.growth_opportunities : [];
+    $('ch-growth').innerHTML = opps
+      .map(o => `<li class="sug-item">${escapeHTML(o)}</li>`)
+      .join('');
+
+    channelHasResults = true;
+    show('channel-results');
+  }
+
+  // ── Section 3: Trending Ideas ─────────────────────────────────────────────
 
   async function loadTrending() {
     hide('trending-empty');
@@ -652,7 +873,7 @@
   }
 
   function ideaCardHTML(idea, badgeClass) {
-    // Store idea data in data-attributes — safer than inline strings
+    // Store idea data in data-attributes — safer than inline onclick strings
     const title   = escapeAttr(idea.title);
     const tagline = escapeAttr(idea.tagline);
     const dur     = escapeAttr(idea.duration);
@@ -670,7 +891,7 @@
       </div>`;
   }
 
-  // ── Modal ─────────────────────────────────────────────────────────────────
+  // ── Modal (language selection + script confirm) ────────────────────────────
 
   function openModal(el) {
     pendingIdea = {
@@ -679,6 +900,9 @@
       duration: el.dataset.duration
     };
     setText('modal-idea-title', pendingIdea.title);
+    // Reset language selector to English each time the modal opens
+    selectedLanguage = 'English';
+    document.querySelectorAll('.lang-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
     show('modal');
   }
 
@@ -687,13 +911,20 @@
     pendingIdea = null;
   }
 
-  // Close modal if user clicks the dark overlay (not the card itself)
+  // Feature 3: language button selection handler
+  function selectLang(btn, lang) {
+    selectedLanguage = lang;
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // Close modal when user clicks the dark overlay
   $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
 
-  // ── Section 3: Script Generator ───────────────────────────────────────────
+  // ── Section 4: Script Generator ───────────────────────────────────────────
 
   async function confirmScript() {
-    const idea = pendingIdea;   // capture before closing resets it
+    const idea = pendingIdea;  // capture before closeModal() resets it
     closeModal();
     switchTab('script');
     if (!idea) return;
@@ -707,16 +938,13 @@
       const res = await fetch('/api/generate-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(idea)
+        body: JSON.stringify({ ...idea, language: selectedLanguage })  // Feature 3
       });
-      // Parse JSON first so we can show the actual server error message
       let data;
       try { data = await res.json(); }
       catch { throw new Error('Server returned an unreadable response. Please try again.'); }
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Something went wrong. Please try again.');
-      }
+      if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
       renderScript(data);
     } catch (err) {
       showScriptError(err.message);
@@ -725,12 +953,17 @@
     }
   }
 
-  function renderScript({ script: s, title }) {
-    setText('script-title',  title);
-    setText('s-hook',        s.hook.text);
-    setText('s-hook-dir',    '📌 ' + s.hook.direction);
-    setText('s-intro',       s.intro.text);
-    setText('s-intro-dir',   '📌 ' + s.intro.direction);
+  function renderScript({ script: s, title, language }) {
+    // Show language badge in the script title when not English
+    const langBadge = (language && language !== 'English')
+      ? ` <span class="badge badge-blue" style="vertical-align:middle;font-size:.7rem">${escapeHTML(language)}</span>`
+      : '';
+    $('script-title').innerHTML = escapeHTML(title) + langBadge;
+
+    setText('s-hook',      s.hook.text);
+    setText('s-hook-dir',  '📌 ' + s.hook.direction);
+    setText('s-intro',     s.intro.text);
+    setText('s-intro-dir', '📌 ' + s.intro.direction);
 
     $('s-body').innerHTML = s.body.map((sec, i) => `
       <div class="script-part">
@@ -749,6 +982,59 @@
     show('script-results');
   }
 
+  // ── Section 5: Growth Hacks ───────────────────────────────────────────────
+
+  async function loadGrowthHacks() {
+    hide('growth-empty');
+    hide('growth-results');
+    hide('growth-error');
+    show('growth-loading');
+
+    try {
+      const res  = await fetch('/api/growth-hacks');
+      const data = await res.json();
+      if (!res.ok) { showGrowthError(data.error || 'Something went wrong.'); return; }
+      renderGrowthHacks(data);
+    } catch {
+      showGrowthError('Network error — please check your connection.');
+    } finally {
+      hide('growth-loading');
+    }
+  }
+
+  function renderGrowthHacks(data) {
+    const hacks = Array.isArray(data.hacks) ? data.hacks : [];
+    if (hacks.length === 0) { showGrowthError('No hacks returned. Please try again.'); return; }
+
+    // Map category names to chip colours
+    const catCls = {
+      'Posting Strategy': 'chip-purple',
+      'Thumbnail':        'chip-green',
+      'Title Formula':    'chip-green',
+      'Engagement':       'chip-purple',
+      'Collaboration':    'chip-green',
+      'Monetisation':     'chip-purple',
+    };
+
+    $('growth-hacks-list').innerHTML = hacks.map((hack, i) => {
+      const cls = catCls[hack.category] || 'chip-purple';
+      return `
+        <div class="card">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="hack-num">${i + 1}</div>
+            <div style="flex:1">
+              <div style="font-size:.92rem;font-weight:700;margin-bottom:.4rem;color:var(--text)">${escapeHTML(hack.title)}</div>
+              <p class="prose" style="margin-bottom:.65rem">${escapeHTML(hack.description)}</p>
+              <span class="chip ${cls}">${escapeHTML(hack.category)}</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    growthHasResults = true;
+    show('growth-results');
+  }
+
   // ── Error helpers ─────────────────────────────────────────────────────────
 
   function showError(section, msg) {
@@ -763,6 +1049,13 @@
     el.textContent = '⚠️  ' + msg;
     show('script-error');
     show('script-empty');
+  }
+
+  function showGrowthError(msg) {
+    const el = $('growth-error');
+    el.textContent = '⚠️  ' + msg;
+    show('growth-error');
+    show('growth-empty');
   }
 
   // ── XSS-safe escaping ─────────────────────────────────────────────────────
