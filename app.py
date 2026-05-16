@@ -293,7 +293,7 @@ Include 3-4 body sections. Keep it conversational and perfect for an Indian Engl
 
         message = get_claude().messages.create(
             model=MODEL,
-            max_tokens=3500,
+            max_tokens=2500,
             messages=[{'role': 'user', 'content': prompt}]
         )
         script = parse_claude_json(message.content[0].text)
