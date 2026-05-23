@@ -11,15 +11,33 @@ from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 import anthropic
 
-# Load API keys from .env file
+# Load API keys from .env file (only used locally — Railway reads env vars directly)
 load_dotenv()
 
 app = Flask(__name__)
 
-YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY', '').strip()
-HEYGEN_API_KEY  = os.getenv('HEYGEN_API_KEY', '').strip()
-HEYGEN_BASE     = 'https://api.heygen.com'
-MODEL = "claude-sonnet-4-6"
+HEYGEN_BASE = 'https://api.heygen.com'
+MODEL       = "claude-sonnet-4-6"
+
+
+def _load_key(env_var):
+    """
+    Read an environment variable and return it only if it looks like a real value.
+    Placeholders like 'your_*_here' or empty strings are treated as missing (returns '').
+    This prevents placeholder text from leaking into API URLs.
+    """
+    value = os.getenv(env_var, '').strip()
+    if not value:
+        return ''
+    # Reject obvious placeholder patterns from .env.example
+    lower = value.lower()
+    if lower.startswith('your_') or lower.endswith('_here') or lower in ('changeme', 'placeholder', 'xxx'):
+        return ''
+    return value
+
+
+YOUTUBE_API_KEY = _load_key('YOUTUBE_API_KEY')
+HEYGEN_API_KEY  = _load_key('HEYGEN_API_KEY')
 
 # Lazy-initialized — created on the first request, not at import time.
 # This ensures env vars are fully settled before we read them.
@@ -29,7 +47,8 @@ def get_claude():
     """Return the shared Anthropic client, creating it on first call."""
     global _claude
     if _claude is None:
-        api_key = (os.getenv('ANTHROPIC_API_KEY') or os.getenv('YT_ANTHROPIC_API_KEY', '')).strip()
+        # _load_key rejects placeholder values like 'your_anthropic_api_key_here'
+        api_key = _load_key('ANTHROPIC_API_KEY') or _load_key('YT_ANTHROPIC_API_KEY')
         _claude = anthropic.Anthropic(api_key=api_key)
     return _claude
 
@@ -197,8 +216,9 @@ def index():
 @app.route('/debug')
 def debug():
     """Shows whether API keys are loaded — never exposes the actual values."""
-    yt  = os.getenv('YOUTUBE_API_KEY', '').strip()
-    ai  = (os.getenv('ANTHROPIC_API_KEY') or os.getenv('YT_ANTHROPIC_API_KEY', '')).strip()
+    # Use _load_key so placeholder values are also flagged as missing
+    yt = _load_key('YOUTUBE_API_KEY')
+    ai = _load_key('ANTHROPIC_API_KEY') or _load_key('YT_ANTHROPIC_API_KEY')
     return jsonify({
         'YOUTUBE_API_KEY':      'loaded' if yt else 'MISSING',
         'YT_ANTHROPIC_API_KEY': 'loaded' if ai else 'MISSING',
@@ -211,6 +231,8 @@ def analyze_video():
     Section 1 — Video Analyser
     Accepts a YouTube URL, fetches video metadata, asks Claude for SEO analysis.
     """
+    if not YOUTUBE_API_KEY:
+        return jsonify({'error': 'YOUTUBE_API_KEY is not set. Add it to your .env file (locally) or Railway environment variables (production).'}), 500
     try:
         url = request.json.get('url', '').strip()
         video_id = extract_video_id(url)
@@ -269,6 +291,8 @@ def get_trending():
     Fetches top trending education videos from YouTube India,
     then asks Claude to suggest short-form and long-form video ideas.
     """
+    if not YOUTUBE_API_KEY:
+        return jsonify({'error': 'YOUTUBE_API_KEY is not set. Add it to your .env file (locally) or Railway environment variables (production).'}), 500
     try:
         videos = []
 
@@ -430,6 +454,8 @@ def analyze_channel():
     Accepts a YouTube channel URL or @handle, fetches channel stats + recent uploads,
     then asks Claude for a full channel health analysis.
     """
+    if not YOUTUBE_API_KEY:
+        return jsonify({'error': 'YOUTUBE_API_KEY is not set. Add it to your .env file (locally) or Railway environment variables (production).'}), 500
     try:
         user_input = request.json.get('channel', '').strip()
         if not user_input:
