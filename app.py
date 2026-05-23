@@ -563,14 +563,50 @@ def _heygen_headers():
 
 @app.route('/api/heygen/avatars', methods=['GET'])
 def get_heygen_avatars():
-    """Fetch the user's available avatars from HeyGen."""
+    """
+    Fetch avatars from HeyGen and return them in two separate lists:
+      - custom_avatars: the user's own Digital Twin / Instant Avatars
+      - stock_avatars:  HeyGen's built-in library avatars
+
+    We call two endpoints in parallel:
+      - /v1/instant_avatar.list  → only the user's custom avatars (most reliable)
+      - /v2/avatars              → everything (custom + stock); we strip custom ones
+                                   from this list to avoid duplicates
+    """
     try:
-        resp = requests.get(
-            f'{HEYGEN_BASE}/v2/avatars',
-            headers=_heygen_headers(), timeout=15
+        # Fetch both lists at the same time for speed
+        custom_resp, all_resp = (
+            requests.get(f'{HEYGEN_BASE}/v1/instant_avatar.list',
+                         headers=_heygen_headers(), timeout=15),
+            requests.get(f'{HEYGEN_BASE}/v2/avatars',
+                         headers=_heygen_headers(), timeout=15),
         )
-        resp.raise_for_status()
-        return jsonify(resp.json())
+        custom_resp.raise_for_status()
+        all_resp.raise_for_status()
+
+        custom_data = custom_resp.json()
+        all_data     = all_resp.json()
+
+        # Extract the user's custom avatars (instant avatars + talking photos)
+        custom_avatars = (
+            custom_data.get('data', {}).get('avatars', []) +
+            custom_data.get('data', {}).get('talking_photos', [])
+        )
+
+        # Build a set of custom avatar_ids so we can exclude them from the stock list
+        custom_ids = {av['avatar_id'] for av in custom_avatars}
+
+        # Stock avatars = everything from /v2/avatars that isn't a custom avatar
+        stock_avatars = [
+            av for av in all_data.get('data', {}).get('avatars', [])
+            if av['avatar_id'] not in custom_ids
+        ]
+
+        return jsonify({
+            'custom_avatars': custom_avatars,
+            'stock_avatars':  stock_avatars,
+        })
+
     except requests.RequestException as e:
         return jsonify({'error': f'HeyGen API error: {e}'}), 500
     except Exception as e:

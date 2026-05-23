@@ -1043,8 +1043,48 @@
           <div id="avatar-error" class="alert alert-error hidden"></div>
 
           <div id="avatar-section" class="hidden">
-            <p style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Choose an avatar:</p>
-            <div class="avatar-grid" id="avatar-grid"></div>
+
+            <!-- ── Your Digital Twin (custom avatars) ── -->
+            <div style="margin-bottom:1.1rem">
+              <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem">
+                <span style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--primary-lt)">👤 Your Digital Twin</span>
+                <span style="font-size:.68rem;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.25);color:var(--primary-lt);padding:.15rem .5rem;border-radius:50px;font-weight:600">Recommended</span>
+              </div>
+
+              <!-- Empty state shown when user has no custom avatars -->
+              <div id="no-custom-avatar" class="hidden" style="padding:1rem;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:10px;display:flex;gap:.85rem;align-items:flex-start">
+                <span style="font-size:1.5rem">⚠️</span>
+                <div>
+                  <div style="font-size:.855rem;font-weight:600;color:var(--amber);margin-bottom:.3rem">No Digital Twin found</div>
+                  <p style="font-size:.8rem;color:var(--muted);line-height:1.55;margin-bottom:.6rem">
+                    You don't have a custom avatar yet. Create your Digital Twin on HeyGen first, then come back here.
+                  </p>
+                  <a href="https://app.heygen.com/avatars" target="_blank" rel="noopener"
+                     style="display:inline-flex;align-items:center;gap:.35rem;font-size:.8rem;font-weight:600;color:var(--primary-lt);text-decoration:none">
+                    Create Digital Twin on HeyGen →
+                  </a>
+                </div>
+              </div>
+
+              <!-- Grid shown when custom avatars exist -->
+              <div class="avatar-grid" id="custom-avatar-grid"></div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- ── HeyGen Stock Avatars ── -->
+            <div style="margin-bottom:1rem">
+              <button type="button"
+                      onclick="toggleStockAvatars()"
+                      style="display:flex;align-items:center;gap:.5rem;background:none;border:none;cursor:pointer;padding:0;margin-bottom:.65rem;width:100%;text-align:left">
+                <span style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">🤖 HeyGen Stock Avatars</span>
+                <span id="stock-toggle-icon" style="font-size:.72rem;color:var(--muted);margin-left:auto">▼ Show</span>
+              </button>
+              <div id="stock-avatar-grid-wrap" class="hidden">
+                <p style="font-size:.75rem;color:var(--muted);margin-bottom:.65rem">Use these as a fallback if you haven't created your Digital Twin yet.</p>
+                <div class="avatar-grid" id="stock-avatar-grid"></div>
+              </div>
+            </div>
 
             <div class="divider"></div>
 
@@ -1998,33 +2038,61 @@ async function loadAvatars() {
   }
 }
 
-function renderAvatars(data) {
-  // HeyGen v2 returns: { data: { avatars: [...] } }
-  const avatars = data?.data?.avatars || data?.avatars || [];
-
-  if (!avatars.length) {
-    $('avatar-grid').innerHTML = `<p style="font-size:.82rem;color:var(--muted);grid-column:1/-1">No avatars found in your HeyGen account. Create one at heygen.com.</p>`;
-    return;
-  }
-
-  $('avatar-grid').innerHTML = avatars.map(av => `
+function avatarCardHTML(av) {
+  // Shared card HTML for both custom and stock avatar grids
+  return `
     <div class="avatar-card"
          data-id="${escapeAttr(av.avatar_id)}"
          data-name="${escapeAttr(av.avatar_name || av.name || 'Avatar')}"
          onclick="selectAvatar(this)">
       <img src="${escapeAttr(av.preview_image_url || av.thumbnail_url || '')}"
            alt="${escapeAttr(av.avatar_name || 'Avatar')}"
-           onerror="this.src=''" />
+           onerror="this.style.display='none'" />
       <div class="avatar-name">${escapeHTML(av.avatar_name || av.name || 'Avatar')}</div>
-    </div>`).join('');
+    </div>`;
+}
+
+function renderAvatars(data) {
+  // Backend now returns { custom_avatars: [...], stock_avatars: [...] }
+  const custom = Array.isArray(data.custom_avatars) ? data.custom_avatars : [];
+  const stock  = Array.isArray(data.stock_avatars)  ? data.stock_avatars  : [];
+
+  // ── Custom (Digital Twin) section ──
+  if (custom.length === 0) {
+    // Show the "no Digital Twin yet" CTA message
+    show('no-custom-avatar');
+    $('custom-avatar-grid').innerHTML = '';
+  } else {
+    hide('no-custom-avatar');
+    $('custom-avatar-grid').innerHTML = custom.map(avatarCardHTML).join('');
+    // Auto-select the first custom avatar as a convenience
+    const firstCard = $('custom-avatar-grid').querySelector('.avatar-card');
+    if (firstCard) selectAvatar(firstCard);
+  }
+
+  // ── Stock avatar section ──
+  if (stock.length === 0) {
+    $('stock-avatar-grid').innerHTML = '<p style="font-size:.8rem;color:var(--muted)">No stock avatars available.</p>';
+  } else {
+    $('stock-avatar-grid').innerHTML = stock.map(avatarCardHTML).join('');
+  }
 }
 
 function selectAvatar(el) {
+  // Deselect every avatar card across both grids
   document.querySelectorAll('.avatar-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   selectedAvatarId   = el.dataset.id;
   selectedAvatarName = el.dataset.name;
   updateEstCredits();
+}
+
+function toggleStockAvatars() {
+  const wrap = $('stock-avatar-grid-wrap');
+  const icon = $('stock-toggle-icon');
+  const isHidden = wrap.classList.contains('hidden');
+  wrap.classList.toggle('hidden', !isHidden);
+  icon.textContent = isHidden ? '▲ Hide' : '▼ Show';
 }
 
 function renderVoices(data) {
