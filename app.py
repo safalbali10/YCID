@@ -17,6 +17,8 @@ load_dotenv()
 app = Flask(__name__)
 
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY', '').strip()
+HEYGEN_API_KEY  = os.getenv('HEYGEN_API_KEY', '').strip()
+HEYGEN_BASE     = 'https://api.heygen.com'
 MODEL = "claude-sonnet-4-6"
 
 # Lazy-initialized — created on the first request, not at import time.
@@ -517,6 +519,161 @@ Generate EXACTLY 10 hacks. Every hack must be niche-specific to Indian English l
         hacks = parse_claude_json(message.content[0].text)
 
         return jsonify(hacks)
+
+    except json.JSONDecodeError:
+        return jsonify({'error': 'AI returned unexpected format. Please try again.'}), 500
+    except anthropic.APIError as e:
+        return jsonify({'error': f'Claude API error: {e}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {e}'}), 500
+
+
+# ─── HeyGen routes ───────────────────────────────────────────────────────────
+
+def _heygen_headers():
+    """Return auth headers for all HeyGen API calls."""
+    return {'X-Api-Key': HEYGEN_API_KEY, 'Content-Type': 'application/json'}
+
+
+@app.route('/api/heygen/avatars', methods=['GET'])
+def get_heygen_avatars():
+    """Fetch the user's available avatars from HeyGen."""
+    try:
+        resp = requests.get(
+            f'{HEYGEN_BASE}/v2/avatars',
+            headers=_heygen_headers(), timeout=15
+        )
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.RequestException as e:
+        return jsonify({'error': f'HeyGen API error: {e}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {e}'}), 500
+
+
+@app.route('/api/heygen/voices', methods=['GET'])
+def get_heygen_voices():
+    """Fetch available TTS voices from HeyGen."""
+    try:
+        resp = requests.get(
+            f'{HEYGEN_BASE}/v2/voices',
+            headers=_heygen_headers(), timeout=15
+        )
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.RequestException as e:
+        return jsonify({'error': f'HeyGen API error: {e}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {e}'}), 500
+
+
+@app.route('/api/heygen/generate', methods=['POST'])
+def generate_heygen_video():
+    """
+    Start a HeyGen video generation job.
+    Expects: avatar_id, voice_id, script_text, format ('shorts' or 'longform').
+    Returns: the HeyGen job response including video_id.
+    """
+    try:
+        data        = request.json
+        avatar_id   = data.get('avatar_id', '')
+        voice_id    = data.get('voice_id', '')
+        script_text = data.get('script_text', '')
+        fmt         = data.get('format', 'shorts')
+
+        # Shorts = vertical 1080×1920, long-form = horizontal 1920×1080
+        width, height = (1080, 1920) if fmt == 'shorts' else (1920, 1080)
+
+        payload = {
+            "video_inputs": [{
+                "character": {
+                    "type": "avatar",
+                    "avatar_id": avatar_id,
+                    "avatar_style": "normal"
+                },
+                "voice": {
+                    "type": "text",
+                    "input_text": script_text,
+                    "voice_id": voice_id
+                },
+                "background": {
+                    "type": "color",
+                    "value": "#1a1a2e"
+                }
+            }],
+            "dimension": {"width": width, "height": height}
+        }
+
+        resp = requests.post(
+            f'{HEYGEN_BASE}/v2/video/generate',
+            headers=_heygen_headers(),
+            json=payload, timeout=30
+        )
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.RequestException as e:
+        return jsonify({'error': f'HeyGen API error: {e}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {e}'}), 500
+
+
+@app.route('/api/heygen/status/<video_id>', methods=['GET'])
+def get_heygen_status(video_id):
+    """Poll HeyGen for the status of a video generation job."""
+    try:
+        resp = requests.get(
+            f'{HEYGEN_BASE}/v1/video_status.get',
+            params={'video_id': video_id},
+            headers=_heygen_headers(), timeout=15
+        )
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except requests.RequestException as e:
+        return jsonify({'error': f'HeyGen API error: {e}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {e}'}), 500
+
+
+@app.route('/api/review-script', methods=['POST'])
+def review_script():
+    """
+    Claude reviews a video script and returns:
+    engagement score, hook strength, SEO title, description, thumbnail text,
+    best posting time for Indian audience, and estimated reach.
+    """
+    try:
+        data        = request.json
+        script_text = data.get('script_text', '')
+        language    = data.get('language', 'English')
+
+        prompt = f"""You are an expert YouTube content strategist specialising in Indian digital content.
+
+Review this video script and return ONLY valid JSON — no markdown, no explanation.
+
+Language: {language}
+
+Script:
+{script_text[:3000]}
+
+Return this exact JSON:
+{{
+  "engagement_score": <integer 1-10>,
+  "hook_strength": "<one of: Weak | Average | Strong | Viral>",
+  "hook_explanation": "<one sentence explaining the hook rating>",
+  "suggested_title": "<SEO-optimised YouTube title, max 60 characters>",
+  "suggested_description": "<3-4 line YouTube description with 5-8 relevant hashtags at the end>",
+  "thumbnail_text": "<3-5 punchy words for thumbnail overlay — high contrast and compelling>",
+  "recommended_posting_time": "<best day and time for Indian audience e.g. Tuesday 7-9 PM IST, with one-line reason>",
+  "estimated_reach": "<realistic view estimate in first 48 hours with brief reasoning>"
+}}"""
+
+        message = get_claude().messages.create(
+            model=MODEL,
+            max_tokens=1500,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        review = parse_claude_json(message.content[0].text)
+        return jsonify({'review': review})
 
     except json.JSONDecodeError:
         return jsonify({'error': 'AI returned unexpected format. Please try again.'}), 500

@@ -3,653 +3,1333 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>YouTube Channel Intelligence Dashboard</title>
+  <title>YCID — YouTube Channel Intelligence Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
-    /* ── Design tokens ─────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════════
+       DESIGN TOKENS
+    ═══════════════════════════════════════════════════════════════════ */
     :root {
-      --bg:           #06060f;
-      --card:         #0e0e20;
-      --card-border:  rgba(139, 92, 246, 0.18);
-      --primary:      #7c3aed;
-      --primary-lite: #a78bfa;
-      --blue:         #3b82f6;
-      --text:         #e2e8f0;
+      --bg:           #0a0e27;
+      --sidebar-bg:   #0d1130;
+      --card:         #111827;
+      --card-hover:   #161f35;
+      --card-border:  rgba(99,102,241,.18);
+      --primary:      #6366f1;
+      --primary-lt:   #818cf8;
+      --primary-dk:   #4f46e5;
+      --grad:         linear-gradient(135deg,#6366f1 0%,#3b82f6 100%);
+      --grad-hover:   linear-gradient(135deg,#4f46e5 0%,#2563eb 100%);
+      --text:         #f1f5f9;
       --muted:        #94a3b8;
       --green:        #10b981;
       --amber:        #f59e0b;
       --red:          #ef4444;
-      --grad:         linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+      --sidebar-w:    260px;
+      --topbar-h:     60px;
+      --bottom-nav-h: 64px;
+      --radius:       12px;
     }
 
-    /* ── Reset & base ──────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════════════════════════ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: 'Inter', -apple-system, sans-serif;
       min-height: 100vh;
+      overflow-x: hidden;
     }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; }
 
-    /* ── Header ────────────────────────────────── */
-    .header {
-      text-align: center;
-      padding: 1.75rem 1.5rem 1.25rem;
-      background: linear-gradient(180deg, rgba(124,58,237,.14) 0%, transparent 100%);
+    /* ═══════════════════════════════════════════════════════════════════
+       SIDEBAR
+    ═══════════════════════════════════════════════════════════════════ */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--card-border);
+      display: flex; flex-direction: column;
+      z-index: 100;
+      transition: transform .25s ease;
+    }
+    .sidebar-logo {
+      display: flex; align-items: center; gap: .75rem;
+      padding: 1.25rem 1.25rem 1rem;
       border-bottom: 1px solid var(--card-border);
-      position: sticky; top: 0; z-index: 50;
-      backdrop-filter: blur(18px);
     }
-    .header h1 {
-      font-size: clamp(1.25rem, 3vw, 1.75rem);
-      font-weight: 800;
+    .logo-mark {
+      width: 36px; height: 36px; border-radius: 10px;
       background: var(--grad);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
     }
-    .header p { color: var(--muted); font-size: .78rem; margin-top: .3rem; }
+    .logo-text  { font-size: 1.05rem; font-weight: 800; color: var(--text); }
+    .logo-sub   { font-size: .6rem; color: var(--muted); margin-top: .1rem; letter-spacing: .05em; }
 
-    /* ── Tab bar ───────────────────────────────── */
-    .tabs {
-      display: flex; justify-content: center; gap: .5rem;
-      padding: 1.25rem 1rem .25rem; flex-wrap: wrap;
+    .sidebar-nav { flex: 1; padding: .75rem .75rem; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: center; gap: .7rem;
+      padding: .6rem .85rem; border-radius: 9px;
+      font-size: .875rem; font-weight: 500; color: var(--muted);
+      cursor: pointer; transition: all .15s; margin-bottom: .15rem;
+      border: none; background: none; width: 100%; text-align: left;
     }
-    .tab-btn {
-      padding: .55rem 1.25rem; border-radius: 50px;
-      border: 1px solid var(--card-border);
-      background: var(--card); color: var(--muted);
-      cursor: pointer; font-size: .85rem; font-weight: 500;
-      transition: all .2s;
+    .nav-item:hover  { background: rgba(99,102,241,.1); color: var(--primary-lt); }
+    .nav-item.active { background: rgba(99,102,241,.18); color: #fff; font-weight: 600; }
+    .nav-item .nav-icon { font-size: 1rem; width: 1.25rem; text-align: center; flex-shrink: 0; }
+    .nav-section-label {
+      font-size: .65rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+      padding: .85rem .85rem .35rem; opacity: .6;
     }
-    .tab-btn:hover { border-color: var(--primary); color: var(--primary-lite); }
-    .tab-btn.active { background: var(--grad); border-color: transparent; color: #fff; }
 
-    /* ── Layout ────────────────────────────────── */
-    .content { max-width: 880px; margin: 1.75rem auto; padding: 0 1.25rem; }
-    .section { display: none; }
-    .section.active { display: block; }
+    /* ═══════════════════════════════════════════════════════════════════
+       MAIN WRAP
+    ═══════════════════════════════════════════════════════════════════ */
+    .main-wrap {
+      margin-left: var(--sidebar-w);
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
 
-    /* ── Cards ─────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════════
+       TOP BAR
+    ═══════════════════════════════════════════════════════════════════ */
+    .top-bar {
+      position: sticky; top: 0; z-index: 50;
+      height: var(--topbar-h);
+      background: rgba(10,14,39,.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--card-border);
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0 1.5rem;
+    }
+    .hamburger {
+      display: none; /* shown on mobile */
+      background: none; border: none; color: var(--text);
+      font-size: 1.25rem; cursor: pointer; padding: .25rem;
+    }
+    .breadcrumb { font-size: .875rem; color: var(--muted); flex: 1; }
+    .breadcrumb strong { color: var(--text); }
+    .topbar-right { display: flex; align-items: center; gap: .75rem; }
+    .api-badge {
+      font-size: .7rem; padding: .25rem .65rem; border-radius: 50px;
+      background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3);
+      color: #6ee7b7; font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       CONTENT AREA
+    ═══════════════════════════════════════════════════════════════════ */
+    .content-area { flex: 1; padding: 1.75rem 1.5rem 2rem; max-width: 960px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Page title */
+    .page-title {
+      font-size: 1.35rem; font-weight: 800; margin-bottom: .3rem;
+      background: var(--grad); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .page-subtitle { font-size: .8rem; color: var(--muted); margin-bottom: 1.5rem; }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       CARDS
+    ═══════════════════════════════════════════════════════════════════ */
     .card {
       background: var(--card);
       border: 1px solid var(--card-border);
-      border-radius: 16px; padding: 1.4rem; margin-bottom: 1.25rem;
-    }
-    .card-title {
-      font-size: .9rem; font-weight: 700; color: var(--primary-lite);
-      margin-bottom: 1rem; display: flex; align-items: center; gap: .4rem;
-    }
-
-    /* ── Input row ─────────────────────────────── */
-    .input-row { display: flex; gap: .6rem; margin-bottom: 1rem; }
-    .url-input {
-      flex: 1; padding: .8rem 1rem;
-      background: rgba(255,255,255,.05);
-      border: 1px solid var(--card-border); border-radius: 12px;
-      color: var(--text); font-size: .9rem; outline: none;
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1.1rem;
       transition: border-color .2s;
     }
-    .url-input:focus { border-color: var(--primary); }
-    .url-input::placeholder { color: var(--muted); }
+    .card:hover { border-color: rgba(99,102,241,.3); }
+    .card-title {
+      font-size: .875rem; font-weight: 700; color: var(--primary-lt);
+      margin-bottom: .85rem; display: flex; align-items: center; gap: .4rem;
+    }
 
-    /* ── Buttons ───────────────────────────────── */
+    /* Stat cards row */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem; margin-bottom: 1.25rem;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.25rem;
+      transition: all .2s;
+    }
+    .stat-card:hover { border-color: rgba(99,102,241,.4); transform: translateY(-2px); }
+    .stat-icon { font-size: 1.5rem; margin-bottom: .5rem; }
+    .stat-val  { font-size: 1.75rem; font-weight: 800; color: var(--text); }
+    .stat-lbl  { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       INPUTS & FORMS
+    ═══════════════════════════════════════════════════════════════════ */
+    .input-row { display: flex; gap: .6rem; margin-bottom: .85rem; }
+    .url-input {
+      flex: 1; padding: .75rem 1rem;
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--card-border);
+      border-radius: 10px; color: var(--text);
+      font-size: .875rem; outline: none; font-family: inherit;
+      transition: border-color .2s;
+    }
+    .url-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+    .url-input::placeholder { color: var(--muted); }
+    textarea.url-input { resize: vertical; min-height: 140px; line-height: 1.6; }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       BUTTONS
+    ═══════════════════════════════════════════════════════════════════ */
     .btn {
-      padding: .8rem 1.4rem; border-radius: 12px;
+      padding: .7rem 1.3rem; border-radius: 10px;
       font-weight: 600; font-size: .875rem;
       cursor: pointer; transition: all .15s; border: none;
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-family: inherit;
     }
-    .btn-primary { background: var(--grad); color: #fff; }
-    .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
-    .btn-primary:active { transform: translateY(0); }
-    .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-primary {
+      background: var(--grad); color: #fff;
+      box-shadow: 0 4px 14px rgba(99,102,241,.3);
+    }
+    .btn-primary:hover   { background: var(--grad-hover); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,.4); }
+    .btn-primary:active  { transform: translateY(0); }
+    .btn-primary:disabled{ opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
     .btn-secondary {
       background: transparent; color: var(--muted);
       border: 1px solid var(--card-border);
     }
-    .btn-secondary:hover { border-color: var(--muted); color: var(--text); }
+    .btn-secondary:hover  { border-color: var(--muted); color: var(--text); }
+    .btn-ghost {
+      background: rgba(99,102,241,.1); color: var(--primary-lt);
+      border: 1px solid rgba(99,102,241,.2);
+    }
+    .btn-ghost:hover { background: rgba(99,102,241,.2); }
+    .btn-sm { padding: .45rem .9rem; font-size: .8rem; border-radius: 8px; }
+    .btn-danger {
+      background: rgba(239,68,68,.12); color: #fca5a5;
+      border: 1px solid rgba(239,68,68,.25);
+    }
 
-    /* ── Spinner ───────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════════
+       LOADING STATES
+    ═══════════════════════════════════════════════════════════════════ */
     .loading {
       display: flex; flex-direction: column;
-      align-items: center; padding: 3rem; gap: 1rem; color: var(--muted);
+      align-items: center; padding: 3rem; gap: .85rem; color: var(--muted);
+      font-size: .875rem;
     }
     .spinner {
-      width: 38px; height: 38px;
-      border: 3px solid rgba(124,58,237,.2);
+      width: 36px; height: 36px;
+      border: 3px solid rgba(99,102,241,.2);
       border-top-color: var(--primary);
-      border-radius: 50%; animation: spin .75s linear infinite;
+      border-radius: 50%; animation: spin .7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Alert boxes ───────────────────────────── */
+    /* Skeleton loader */
+    .skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,.05) 25%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.05) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       ALERTS
+    ═══════════════════════════════════════════════════════════════════ */
     .alert {
       padding: .75rem 1rem; border-radius: 10px;
-      font-size: .825rem; line-height: 1.5; margin-bottom: 1.25rem;
+      font-size: .825rem; line-height: 1.5; margin-bottom: 1rem;
     }
     .alert-error   { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.3);  color: #fca5a5; }
     .alert-success { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: #6ee7b7; }
 
-    /* ── Video info card ───────────────────────── */
-    .video-row { display: flex; gap: 1rem; align-items: flex-start; }
-    .video-thumb {
-      width: 152px; height: 86px; border-radius: 8px;
-      object-fit: cover; flex-shrink: 0;
-    }
-    .video-details h3 { font-size: .9rem; font-weight: 600; line-height: 1.4; margin-bottom: .5rem; }
-    .meta-row { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: .5rem; }
-    .meta { font-size: .78rem; color: var(--muted); }
-    .summary-text { font-size: .82rem; color: var(--muted); font-style: italic; }
-
-    /* ── SEO score ─────────────────────────────── */
-    .score-wrap { display: flex; align-items: center; gap: 2rem; flex-wrap: wrap; }
+    /* ═══════════════════════════════════════════════════════════════════
+       SCORE RING
+    ═══════════════════════════════════════════════════════════════════ */
+    .score-wrap { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
     .score-ring {
-      width: 96px; height: 96px; border-radius: 50%; flex-shrink: 0;
+      width: 88px; height: 88px; border-radius: 50%; flex-shrink: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
-    .score-num  { font-size: 2rem; font-weight: 800; }
+    .score-num  { font-size: 1.9rem; font-weight: 800; line-height: 1; }
     .score-sub  { font-size: .6rem; color: var(--muted); }
-    .score-expl { font-size: .855rem; color: var(--muted); line-height: 1.65; }
+    .score-expl { font-size: .845rem; color: var(--muted); line-height: 1.65; }
 
-    /* ── Tag chips ─────────────────────────────── */
-    .chips { display: flex; flex-wrap: wrap; gap: .45rem; }
+    /* ═══════════════════════════════════════════════════════════════════
+       CHIPS & BADGES
+    ═══════════════════════════════════════════════════════════════════ */
+    .chips { display: flex; flex-wrap: wrap; gap: .4rem; }
     .chip {
-      padding: .3rem .7rem; border-radius: 50px;
-      font-size: .78rem;
+      padding: .25rem .65rem; border-radius: 50px; font-size: .75rem; font-weight: 500;
     }
-    .chip-purple {
-      background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.3);
-      color: var(--primary-lite);
-    }
-    .chip-green {
-      background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.3);
-      color: #6ee7b7;
-    }
+    .chip-purple { background: rgba(99,102,241,.15); border: 1px solid rgba(99,102,241,.3); color: var(--primary-lt); }
+    .chip-green  { background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.3); color: #6ee7b7; }
+    .chip-amber  { background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.3); color: #fcd34d; }
+    .chip-blue   { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3); color: #93c5fd; }
+    .badge { font-size: .68rem; padding: .18rem .55rem; border-radius: 50px; font-weight: 600; }
+    .badge-amber { background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.3); color: #fcd34d; }
+    .badge-blue  { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3); color: #93c5fd; }
 
-    /* ── Suggestion list ───────────────────────── */
-    .sug-list { list-style: none; display: flex; flex-direction: column; gap: .65rem; }
+    /* ═══════════════════════════════════════════════════════════════════
+       SUGGESTION LIST
+    ═══════════════════════════════════════════════════════════════════ */
+    .sug-list { list-style: none; display: flex; flex-direction: column; gap: .6rem; }
     .sug-item {
-      padding: .7rem .9rem; background: rgba(255,255,255,.04);
-      border-radius: 9px; border-left: 3px solid var(--primary);
-      font-size: .855rem; line-height: 1.5;
+      padding: .65rem .9rem; background: rgba(255,255,255,.04);
+      border-radius: 8px; border-left: 3px solid var(--primary);
+      font-size: .845rem; line-height: 1.5;
     }
 
-    /* ── Prose text ────────────────────────────── */
-    .prose { font-size: .855rem; color: var(--muted); line-height: 1.7; }
+    /* ═══════════════════════════════════════════════════════════════════
+       PROSE
+    ═══════════════════════════════════════════════════════════════════ */
+    .prose { font-size: .845rem; color: var(--muted); line-height: 1.7; }
+    .divider { height: 1px; background: var(--card-border); margin: 1rem 0; }
 
-    /* ── Divider ───────────────────────────────── */
-    .divider { height: 1px; background: var(--card-border); margin: 1.25rem 0; }
+    /* ═══════════════════════════════════════════════════════════════════
+       VIDEO INFO
+    ═══════════════════════════════════════════════════════════════════ */
+    .video-row { display: flex; gap: 1rem; align-items: flex-start; }
+    .video-thumb { width: 152px; height: 86px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+    .video-details h3 { font-size: .9rem; font-weight: 600; line-height: 1.4; margin-bottom: .45rem; }
+    .meta-row { display: flex; flex-wrap: wrap; gap: .65rem; margin-bottom: .4rem; }
+    .meta { font-size: .77rem; color: var(--muted); }
+    .summary-text { font-size: .8rem; color: var(--muted); font-style: italic; }
+    .ch-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 
-    /* ── Trending section label ─────────────────── */
+    /* ═══════════════════════════════════════════════════════════════════
+       IDEA CARDS (trending)
+    ═══════════════════════════════════════════════════════════════════ */
     .sec-label {
-      font-size: .72rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: .09em;
-      color: var(--muted); margin-bottom: .85rem;
+      font-size: .7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .09em; color: var(--muted); margin-bottom: .75rem;
     }
-
-    /* ── Ideas grid ────────────────────────────── */
     .ideas-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-      gap: .9rem; margin-bottom: .5rem;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: .85rem; margin-bottom: .5rem;
     }
     .idea-card {
-      background: rgba(255,255,255,.03);
-      border: 1px solid var(--card-border); border-radius: 12px;
-      padding: .95rem; cursor: pointer; transition: all .2s;
+      background: rgba(255,255,255,.03); border: 1px solid var(--card-border);
+      border-radius: var(--radius); padding: .9rem; cursor: pointer; transition: all .2s;
     }
     .idea-card:hover {
-      border-color: var(--primary);
-      background: rgba(124,58,237,.09);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(124,58,237,.15);
+      border-color: var(--primary); background: rgba(99,102,241,.08);
+      transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,.15);
     }
-    .idea-title {
-      font-size: .855rem; font-weight: 600;
-      line-height: 1.4; margin-bottom: .45rem;
-    }
-    .idea-tagline {
-      font-size: .77rem; color: var(--muted);
-      line-height: 1.5; margin-bottom: .7rem;
-    }
-    .idea-footer { display: flex; justify-content: space-between; align-items: center; }
-    .badge {
-      font-size: .68rem; padding: .18rem .55rem;
-      border-radius: 50px; font-weight: 600;
-    }
-    .badge-amber {
-      background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.3);
-      color: #fcd34d;
-    }
-    .badge-blue {
-      background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3);
-      color: #93c5fd;
-    }
-    .why { font-size: .7rem; color: #6ee7b7; }
+    .idea-title   { font-size: .845rem; font-weight: 600; line-height: 1.4; margin-bottom: .4rem; }
+    .idea-tagline { font-size: .77rem; color: var(--muted); line-height: 1.5; margin-bottom: .65rem; }
+    .idea-footer  { display: flex; justify-content: space-between; align-items: center; }
+    .why { font-size: .68rem; color: #6ee7b7; }
 
-    /* ── Script display ────────────────────────── */
-    .script-part { margin-bottom: 1.1rem; }
-    .part-label {
-      font-size: .7rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: .09em;
-      color: var(--primary-lite); margin-bottom: .45rem;
-    }
-    .part-text {
-      font-size: .865rem; line-height: 1.75; color: var(--text);
-      padding: .75rem; background: rgba(255,255,255,.04); border-radius: 8px;
-    }
-    .part-dir {
-      font-size: .775rem; color: var(--muted); font-style: italic;
-      padding: .45rem .75rem;
-      border-left: 2px solid rgba(124,58,237,.3);
-      margin-top: .45rem;
-    }
+    /* ═══════════════════════════════════════════════════════════════════
+       SCRIPT DISPLAY
+    ═══════════════════════════════════════════════════════════════════ */
+    .script-part { margin-bottom: 1rem; }
+    .part-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--primary-lt); margin-bottom: .4rem; }
+    .part-text  { font-size: .855rem; line-height: 1.75; color: var(--text); padding: .7rem; background: rgba(255,255,255,.04); border-radius: 8px; }
+    .part-dir   { font-size: .77rem; color: var(--muted); font-style: italic; padding: .4rem .7rem; border-left: 2px solid rgba(99,102,241,.3); margin-top: .4rem; }
 
-    /* ── Modal ─────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════════
+       GROWTH HACKS
+    ═══════════════════════════════════════════════════════════════════ */
+    .hack-num { font-size: 1.5rem; font-weight: 800; color: var(--primary); min-width: 2rem; text-align: center; line-height: 1; }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       EMPTY STATE
+    ═══════════════════════════════════════════════════════════════════ */
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+    .empty-icon { font-size: 2.75rem; margin-bottom: .65rem; }
+    .empty p    { font-size: .875rem; margin-bottom: 1.25rem; }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       MODAL
+    ═══════════════════════════════════════════════════════════════════ */
     .overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,.8); backdrop-filter: blur(5px);
-      z-index: 200; display: flex; align-items: center;
-      justify-content: center; padding: 1rem;
+      position: fixed; inset: 0; background: rgba(0,0,0,.75);
+      backdrop-filter: blur(6px); z-index: 300;
+      display: flex; align-items: center; justify-content: center; padding: 1rem;
     }
     .modal {
       background: var(--card); border: 1px solid var(--card-border);
-      border-radius: 18px; padding: 1.75rem; max-width: 480px; width: 100%;
+      border-radius: 18px; padding: 1.65rem; max-width: 480px; width: 100%;
+      animation: modalIn .2s ease;
     }
-    .modal h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: .5rem; }
-    .modal-idea {
-      color: var(--primary-lite); font-size: .85rem; line-height: 1.45;
-      margin-bottom: 1.25rem; padding: .65rem .85rem;
-      background: rgba(124,58,237,.1); border-radius: 8px;
-    }
-    .modal-hint { font-size: .815rem; color: var(--muted); margin-bottom: 1.4rem; }
-    .modal-actions { display: flex; gap: .75rem; justify-content: flex-end; }
-
-    /* ── Empty state ───────────────────────────── */
-    .empty {
-      text-align: center; padding: 3.5rem 1rem; color: var(--muted);
-    }
-    .empty-icon { font-size: 3rem; margin-bottom: .75rem; }
-    .empty p { font-size: .875rem; margin-bottom: 1.5rem; }
-
-    /* ── Utility ───────────────────────────────── */
-    .hidden { display: none !important; }
-    .refresh-row { display: flex; justify-content: space-between; align-items: center; }
-
-    /* ── Language selector buttons (in modal) ──── */
+    @keyframes modalIn { from { opacity:0; transform: scale(.96) translateY(8px); } to { opacity:1; transform: none; } }
+    .modal h3        { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
+    .modal-idea      { color: var(--primary-lt); font-size: .84rem; line-height: 1.45; margin-bottom: 1.1rem; padding: .6rem .8rem; background: rgba(99,102,241,.1); border-radius: 8px; }
+    .modal-hint      { font-size: .8rem; color: var(--muted); margin-bottom: 1.25rem; }
+    .modal-actions   { display: flex; gap: .65rem; justify-content: flex-end; }
     .lang-btn {
-      padding: .45rem .9rem; border-radius: 8px;
-      font-size: .8rem; font-weight: 500; cursor: pointer;
-      border: 1px solid var(--card-border);
-      background: rgba(255,255,255,.04); color: var(--muted);
-      transition: all .15s;
+      padding: .4rem .85rem; border-radius: 8px; font-size: .8rem; font-weight: 500;
+      cursor: pointer; border: 1px solid var(--card-border);
+      background: rgba(255,255,255,.04); color: var(--muted); transition: all .15s;
+      font-family: inherit;
     }
-    .lang-btn.active {
-      background: rgba(124,58,237,.2);
-      border-color: var(--primary);
-      color: var(--primary-lite);
-    }
+    .lang-btn.active { background: rgba(99,102,241,.18); border-color: var(--primary); color: var(--primary-lt); }
     .lang-btn:hover:not(.active) { border-color: var(--muted); color: var(--text); }
 
-    /* ── Channel avatar (circular thumbnail) ───── */
-    .ch-avatar {
-      width: 86px; height: 86px; border-radius: 50%;
-      object-fit: cover; flex-shrink: 0;
+    /* ═══════════════════════════════════════════════════════════════════
+       TOAST NOTIFICATIONS
+    ═══════════════════════════════════════════════════════════════════ */
+    #toast-container {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      display: flex; flex-direction: column; gap: .65rem;
+      z-index: 500; pointer-events: none;
+    }
+    .toast {
+      padding: .75rem 1.1rem; border-radius: 10px;
+      font-size: .82rem; font-weight: 500;
+      background: var(--card); border: 1px solid var(--card-border);
+      color: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      pointer-events: auto; display: flex; align-items: center; gap: .5rem;
+      animation: toastIn .25s ease;
+    }
+    .toast-success { border-color: rgba(16,185,129,.3); }
+    .toast-error   { border-color: rgba(239,68,68,.3); }
+    @keyframes toastIn { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform: none; } }
+    @keyframes toastOut { to { opacity:0; transform: translateX(20px); } }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       VIDEO CREATOR — WIZARD
+    ═══════════════════════════════════════════════════════════════════ */
+
+    /* Step progress indicator */
+    .wizard-steps {
+      display: flex; align-items: center; gap: 0;
+      margin-bottom: 1.5rem; padding: 1rem 1.25rem;
+      background: var(--card); border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+    }
+    .wizard-step {
+      display: flex; align-items: center; gap: .5rem;
+      flex: 1; position: relative;
+    }
+    .wizard-step:not(:last-child)::after {
+      content: ''; position: absolute; top: 50%;
+      left: calc(100% - 1rem); right: -1rem;
+      height: 1px; background: var(--card-border);
+      transform: translateY(-50%);
+    }
+    .step-circle {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .75rem; font-weight: 700;
+      background: rgba(255,255,255,.06); border: 1px solid var(--card-border);
+      color: var(--muted); transition: all .3s;
+    }
+    .wizard-step.done .step-circle    { background: rgba(16,185,129,.2); border-color: var(--green); color: var(--green); }
+    .wizard-step.active .step-circle  { background: var(--grad); border-color: transparent; color: #fff; }
+    .step-label  { font-size: .72rem; color: var(--muted); display: none; }
+    .wizard-step.active .step-label   { color: var(--text); }
+    @media (min-width: 560px) { .step-label { display: block; } }
+
+    /* Wizard step panels */
+    .wizard-panel { display: none; animation: fadeIn .25s ease; }
+    .wizard-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: none; } }
+
+    /* Avatar grid */
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: .75rem; margin-bottom: 1rem;
+    }
+    .avatar-card {
+      background: rgba(255,255,255,.04); border: 2px solid var(--card-border);
+      border-radius: var(--radius); padding: .75rem; cursor: pointer;
+      transition: all .2s; text-align: center;
+    }
+    .avatar-card:hover   { border-color: var(--primary); background: rgba(99,102,241,.08); transform: translateY(-2px); }
+    .avatar-card.selected{ border-color: var(--primary); background: rgba(99,102,241,.15); box-shadow: 0 0 0 3px rgba(99,102,241,.2); }
+    .avatar-card img     { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; margin-bottom: .5rem; }
+    .avatar-name         { font-size: .72rem; font-weight: 600; color: var(--text); }
+
+    /* Voice select */
+    .voice-select {
+      width: 100%; padding: .7rem 1rem;
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--card-border);
+      border-radius: 10px; color: var(--text);
+      font-size: .875rem; outline: none; font-family: inherit;
+      cursor: pointer;
+    }
+    .voice-select:focus { border-color: var(--primary); }
+    .voice-select option { background: #1a1a2e; }
+
+    /* Format selector */
+    .format-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1rem; }
+    .format-card {
+      border: 2px solid var(--card-border); border-radius: var(--radius);
+      padding: 1rem; cursor: pointer; transition: all .2s; text-align: center;
+    }
+    .format-card:hover    { border-color: var(--primary); background: rgba(99,102,241,.06); }
+    .format-card.selected { border-color: var(--primary); background: rgba(99,102,241,.12); }
+    .format-icon  { font-size: 1.75rem; margin-bottom: .4rem; }
+    .format-name  { font-size: .875rem; font-weight: 700; margin-bottom: .2rem; }
+    .format-dim   { font-size: .72rem; color: var(--muted); }
+
+    /* Progress bar */
+    .progress-bar-wrap { height: 8px; background: rgba(255,255,255,.07); border-radius: 4px; overflow: hidden; margin: .85rem 0; }
+    .progress-bar { height: 100%; background: var(--grad); border-radius: 4px; transition: width .5s ease; }
+
+    /* Video preview */
+    .video-preview-wrap { text-align: center; }
+    .video-preview-wrap video { max-width: 100%; border-radius: 10px; max-height: 400px; }
+
+    /* Claude review cards */
+    .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1rem; }
+    .review-card {
+      background: rgba(255,255,255,.04); border: 1px solid var(--card-border);
+      border-radius: 10px; padding: .9rem;
+    }
+    .review-card-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .4rem; }
+    .review-card-val   { font-size: .88rem; font-weight: 600; color: var(--text); }
+    .hook-pill {
+      display: inline-block; padding: .25rem .65rem; border-radius: 50px;
+      font-size: .75rem; font-weight: 700;
+    }
+    .hook-weak    { background: rgba(239,68,68,.15);   color: #fca5a5; }
+    .hook-average { background: rgba(245,158,11,.15);  color: #fcd34d; }
+    .hook-strong  { background: rgba(16,185,129,.15);  color: #6ee7b7; }
+    .hook-viral   { background: rgba(99,102,241,.15);  color: var(--primary-lt); }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SETTINGS
+    ═══════════════════════════════════════════════════════════════════ */
+    .settings-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: .8rem 0; border-bottom: 1px solid var(--card-border);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-label { font-size: .875rem; font-weight: 500; }
+    .settings-val   { font-size: .8rem; color: var(--muted); margin-top: .1rem; }
+    .key-status-ok  { color: var(--green); font-size: .8rem; font-weight: 600; }
+    .key-status-err { color: var(--red);   font-size: .8rem; font-weight: 600; }
+
+    /* Keyboard shortcut pill */
+    .kbd {
+      display: inline-flex; gap: .25rem;
+    }
+    .kbd kbd {
+      display: inline-block; padding: .15rem .45rem; border-radius: 5px;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+      font-size: .72rem; font-family: inherit; color: var(--muted);
     }
 
-    /* ── Growth hack number badge ───────────────── */
-    .hack-num {
-      font-size: 1.6rem; font-weight: 800;
-      color: var(--primary); min-width: 2.25rem;
-      text-align: center; line-height: 1;
+    /* ═══════════════════════════════════════════════════════════════════
+       ACTIVITY FEED
+    ═══════════════════════════════════════════════════════════════════ */
+    .activity-item {
+      display: flex; align-items: flex-start; gap: .75rem;
+      padding: .7rem 0; border-bottom: 1px solid var(--card-border);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; margin-top: .35rem; }
+    .activity-text { font-size: .82rem; color: var(--text); flex: 1; }
+    .activity-time { font-size: .72rem; color: var(--muted); flex-shrink: 0; }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       UTILITY
+    ═══════════════════════════════════════════════════════════════════ */
+    .hidden { display: none !important; }
+    .refresh-row { display: flex; justify-content: space-between; align-items: center; }
+    .flex-gap { display: flex; gap: .65rem; align-items: center; flex-wrap: wrap; }
+    .mt-sm { margin-top: .5rem; }
+    .mt { margin-top: 1rem; }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       BOTTOM NAV (mobile only)
+    ═══════════════════════════════════════════════════════════════════ */
+    .bottom-nav {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: var(--bottom-nav-h);
+      background: var(--sidebar-bg);
+      border-top: 1px solid var(--card-border);
+      z-index: 100; padding: 0 .25rem;
+    }
+    .bottom-nav-items { display: flex; height: 100%; }
+    .bottom-nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: .2rem;
+      font-size: .65rem; font-weight: 500; color: var(--muted);
+      cursor: pointer; border: none; background: none; font-family: inherit;
+      padding: .4rem; transition: color .15s; min-height: 44px;
+    }
+    .bottom-nav-item .bn-icon { font-size: 1.1rem; }
+    .bottom-nav-item.active { color: var(--primary-lt); }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      .sidebar       { transform: translateX(-100%); }
+      .sidebar.open  { transform: translateX(0); }
+      .main-wrap     { margin-left: 0; }
+      .bottom-nav    { display: flex; }
+      .hamburger     { display: block; }
+      .content-area  { padding-bottom: calc(var(--bottom-nav-h) + 1rem); padding: 1.1rem 1rem calc(var(--bottom-nav-h) + 1rem); }
+      .stat-grid     { grid-template-columns: 1fr 1fr; }
+      .review-grid   { grid-template-columns: 1fr; }
+      .ideas-grid    { grid-template-columns: 1fr; }
+      .input-row     { flex-direction: column; }
+      .video-row     { flex-direction: column; }
+      .video-thumb   { width: 100%; height: auto; aspect-ratio: 16/9; }
+      .score-wrap    { flex-direction: column; align-items: flex-start; }
+    }
+    @media (max-width: 480px) {
+      .stat-grid     { grid-template-columns: 1fr 1fr; }
+      .format-grid   { grid-template-columns: 1fr; }
     }
 
-    /* ── Responsive ────────────────────────────── */
-    @media (max-width: 600px) {
-      .video-row { flex-direction: column; }
-      .video-thumb { width: 100%; height: auto; aspect-ratio: 16/9; }
-      .ch-avatar { width: 64px; height: 64px; }
-      .ideas-grid { grid-template-columns: 1fr; }
-      .input-row { flex-direction: column; }
-      .score-wrap { flex-direction: column; align-items: flex-start; }
+    /* Sidebar overlay for mobile */
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 99;
     }
+    .sidebar-overlay.show { display: block; }
   </style>
 </head>
 <body>
 
-<!-- ─── Header ─────────────────────────────────────────────────────────── -->
-<div class="header">
-  <h1>YouTube Channel Intelligence Dashboard</h1>
-  <p>Powered by Claude AI · YouTube Data API v3</p>
-</div>
+<!-- ─── Sidebar ──────────────────────────────────────────────────────────── -->
+<aside id="sidebar" class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">🎯</div>
+    <div>
+      <div class="logo-text">YCID</div>
+      <div class="logo-sub">YouTube Intelligence</div>
+    </div>
+  </div>
 
-<!-- ─── Tab bar ────────────────────────────────────────────────────────── -->
-<div class="tabs">
-  <button type="button" class="tab-btn active" data-tab="analyser" onclick="switchTab('analyser')">🔍 Video Analyser</button>
-  <button type="button" class="tab-btn" data-tab="channel"  onclick="switchTab('channel')">📡 Channel Analyser</button>
-  <button type="button" class="tab-btn" data-tab="trending" onclick="switchTab('trending')">🔥 Trending Ideas</button>
-  <button type="button" class="tab-btn" data-tab="script"   onclick="switchTab('script')">📝 Script Generator</button>
-  <button type="button" class="tab-btn" data-tab="growth"   onclick="switchTab('growth')">💡 Growth Hacks</button>
-</div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <button class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+      <span class="nav-icon">🏠</span> Dashboard
+    </button>
 
-<!-- ─── Main content ───────────────────────────────────────────────────── -->
-<div class="content">
+    <div class="nav-section-label">Analyse</div>
+    <button class="nav-item" data-tab="analyser" onclick="switchTab('analyser')">
+      <span class="nav-icon">🔍</span> Video Analyser
+    </button>
+    <button class="nav-item" data-tab="channel" onclick="switchTab('channel')">
+      <span class="nav-icon">📊</span> Channel Analyser
+    </button>
 
-  <!-- ══════════════════════════════════════════════════════════════════
-       SECTION 1 — VIDEO ANALYSER
-  ══════════════════════════════════════════════════════════════════ -->
-  <div id="section-analyser" class="section active">
+    <div class="nav-section-label">Create</div>
+    <button class="nav-item" data-tab="trending" onclick="switchTab('trending')">
+      <span class="nav-icon">🔥</span> Trending Ideas
+    </button>
+    <button class="nav-item" data-tab="script" onclick="switchTab('script')">
+      <span class="nav-icon">📝</span> Script Generator
+    </button>
+    <button class="nav-item" data-tab="creator" onclick="switchTab('creator')">
+      <span class="nav-icon">🎬</span> Video Creator
+    </button>
 
-    <div class="card">
-      <div class="card-title">🔍 Analyse a YouTube Video</div>
-      <div class="input-row">
-        <input id="video-url" class="url-input"
-          type="text"
-          placeholder="Paste YouTube URL here… e.g. https://youtu.be/abc123"
-          onkeydown="if(event.key==='Enter') analyseVideo()" />
-        <button type="button" id="analyse-btn" class="btn btn-primary" onclick="analyseVideo()">Analyse</button>
+    <div class="nav-section-label">Grow</div>
+    <button class="nav-item" data-tab="growth" onclick="switchTab('growth')">
+      <span class="nav-icon">🚀</span> Growth Hacks
+    </button>
+
+    <div class="nav-section-label">Account</div>
+    <button class="nav-item" data-tab="settings" onclick="switchTab('settings')">
+      <span class="nav-icon">⚙️</span> Settings
+    </button>
+  </nav>
+</aside>
+
+<!-- Mobile sidebar overlay -->
+<div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- ─── Main wrap ────────────────────────────────────────────────────────── -->
+<div class="main-wrap">
+
+  <!-- Top bar -->
+  <header class="top-bar">
+    <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+    <div class="breadcrumb" id="breadcrumb">
+      YCID &rsaquo; <strong>Dashboard</strong>
+    </div>
+    <div class="topbar-right">
+      <span class="api-badge" id="api-badge">✓ Claude + YouTube</span>
+    </div>
+  </header>
+
+  <!-- Content area -->
+  <div class="content-area">
+
+    <!-- ════════════════════════════════════════════════════════════════
+         DASHBOARD
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="panel-dashboard" class="tab-panel active">
+      <div class="page-title">Welcome back, Safal 👋</div>
+      <div class="page-subtitle">Your YouTube content creation command centre</div>
+
+      <!-- Stat cards -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon">🔍</div>
+          <div class="stat-val" id="stat-videos">0</div>
+          <div class="stat-lbl">Videos Analysed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📝</div>
+          <div class="stat-val" id="stat-scripts">0</div>
+          <div class="stat-lbl">Scripts Generated</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🎬</div>
+          <div class="stat-val" id="stat-ai-videos">0</div>
+          <div class="stat-lbl">AI Videos Created</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-val" id="stat-credits">0</div>
+          <div class="stat-lbl">Credits Used</div>
+        </div>
       </div>
-      <p style="font-size:.78rem;color:var(--muted)">Supports youtube.com/watch?v=… and youtu.be/… links</p>
-    </div>
 
-    <div id="analyser-loading" class="loading hidden">
-      <div class="spinner"></div>
-      <p>Fetching video data and running AI analysis…</p>
-    </div>
+      <!-- Quick actions -->
+      <div class="card" style="margin-bottom:1.1rem">
+        <div class="card-title">⚡ Quick Actions</div>
+        <div style="display:flex;gap:.65rem;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="switchTab('analyser')">🔍 Analyse Video</button>
+          <button class="btn btn-ghost btn-sm" onclick="switchTab('trending')">🔥 Find Trending Ideas</button>
+          <button class="btn btn-ghost btn-sm" onclick="switchTab('creator')">🎬 Create AI Video</button>
+          <button class="btn btn-ghost btn-sm" onclick="switchTab('growth')">🚀 Growth Hacks</button>
+        </div>
+      </div>
 
-    <div id="analyser-error" class="alert alert-error hidden"></div>
-
-    <div id="analyser-results" class="hidden">
-
-      <!-- Video details -->
+      <!-- Recent activity -->
       <div class="card">
-        <div class="card-title">📹 Video Details</div>
-        <div class="video-row">
-          <img id="vid-thumb" class="video-thumb" src="" alt="thumbnail" />
-          <div class="video-details">
-            <h3 id="vid-title"></h3>
-            <div class="meta-row">
-              <span class="meta">📺 <span id="vid-channel"></span></span>
-              <span class="meta">👁️ <span id="vid-views"></span> views</span>
-              <span class="meta">👍 <span id="vid-likes"></span> likes</span>
-              <span class="meta">🌐 <span id="vid-language"></span></span>
+        <div class="card-title">📋 Recent Activity</div>
+        <div id="activity-feed">
+          <div class="empty" style="padding:1.5rem 0">
+            <div class="empty-icon">📭</div>
+            <p style="margin-bottom:0">No activity yet — start analysing or creating!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         VIDEO ANALYSER
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="panel-analyser" class="tab-panel">
+      <div class="page-title">🔍 Video Analyser</div>
+      <div class="page-subtitle">Get AI-powered SEO analysis for any YouTube video</div>
+
+      <div class="card">
+        <div class="card-title">Paste a YouTube link to analyse</div>
+        <div class="input-row">
+          <input id="video-url" class="url-input" type="text"
+            placeholder="https://youtu.be/abc123  or  youtube.com/watch?v=…"
+            onkeydown="if(event.key==='Enter') analyseVideo()" />
+          <button type="button" id="analyse-btn" class="btn btn-primary" onclick="analyseVideo()">Analyse</button>
+        </div>
+        <p style="font-size:.75rem;color:var(--muted)">Supports youtube.com/watch?v=…, youtu.be/… and Shorts links</p>
+      </div>
+
+      <div id="analyser-loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Fetching video data and running Claude analysis…</p>
+      </div>
+      <div id="analyser-error" class="alert alert-error hidden"></div>
+
+      <div id="analyser-results" class="hidden">
+        <div class="card">
+          <div class="card-title">📹 Video Details</div>
+          <div class="video-row">
+            <img id="vid-thumb" class="video-thumb" src="" alt="thumbnail" />
+            <div class="video-details">
+              <h3 id="vid-title"></h3>
+              <div class="meta-row">
+                <span class="meta">📺 <span id="vid-channel"></span></span>
+                <span class="meta">👁️ <span id="vid-views"></span> views</span>
+                <span class="meta">👍 <span id="vid-likes"></span> likes</span>
+                <span class="meta">🌐 <span id="vid-language"></span></span>
+              </div>
+              <span class="summary-text" id="vid-summary"></span>
             </div>
-            <span class="summary-text" id="vid-summary"></span>
           </div>
         </div>
-      </div>
-
-      <!-- SEO Score -->
-      <div class="card">
-        <div class="card-title">📊 SEO Score</div>
-        <div class="score-wrap">
-          <div class="score-ring" id="score-ring">
-            <span class="score-num" id="score-num"></span>
-            <span class="score-sub">/ 10</span>
-          </div>
-          <p class="score-expl" id="score-expl"></p>
-        </div>
-      </div>
-
-      <!-- Title suggestions -->
-      <div class="card">
-        <div class="card-title">✏️ Better Title Suggestions</div>
-        <ul class="sug-list" id="title-sugs"></ul>
-      </div>
-
-      <!-- Recommended tags -->
-      <div class="card">
-        <div class="card-title">🏷️ 5 Recommended Tags</div>
-        <div class="chips" id="better-tags"></div>
-      </div>
-
-      <!-- Thumbnail concept -->
-      <div class="card">
-        <div class="card-title">🖼️ Thumbnail Concept</div>
-        <p class="prose" id="thumb-concept"></p>
-      </div>
-
-      <!-- Reach potential -->
-      <div class="card">
-        <div class="card-title">🚀 Reach Potential</div>
-        <p class="prose" id="reach-potential"></p>
-      </div>
-
-    </div><!-- /analyser-results -->
-  </div><!-- /section-analyser -->
-
-
-  <!-- ══════════════════════════════════════════════════════════════════
-       SECTION 2 — CHANNEL ANALYSER
-  ══════════════════════════════════════════════════════════════════ -->
-  <div id="section-channel" class="section">
-
-    <div class="card">
-      <div class="card-title">📡 Analyse a YouTube Channel</div>
-      <div class="input-row">
-        <input id="channel-input" class="url-input"
-          type="text"
-          placeholder="Paste @handle or channel URL… e.g. @learnwithsumit"
-          onkeydown="if(event.key==='Enter') analyseChannel()" />
-        <button type="button" id="channel-btn" class="btn btn-primary" onclick="analyseChannel()">Analyse</button>
-      </div>
-      <p style="font-size:.78rem;color:var(--muted)">Supports @handle, youtube.com/@handle, or full channel URLs</p>
-    </div>
-
-    <div id="channel-loading" class="loading hidden">
-      <div class="spinner"></div>
-      <p>Fetching channel data and running AI analysis…</p>
-    </div>
-
-    <div id="channel-error" class="alert alert-error hidden"></div>
-
-    <div id="channel-results" class="hidden">
-
-      <!-- Channel overview -->
-      <div class="card">
-        <div class="card-title">📺 Channel Overview</div>
-        <div class="video-row">
-          <img id="ch-thumb" class="ch-avatar" src="" alt="channel thumbnail" />
-          <div class="video-details">
-            <h3 id="ch-name" style="font-size:1rem;margin-bottom:.5rem"></h3>
-            <div class="meta-row">
-              <span class="meta">👥 <span id="ch-subs"></span> subscribers</span>
-              <span class="meta">👁️ <span id="ch-views"></span> total views</span>
-              <span class="meta">🎬 <span id="ch-videos"></span> videos</span>
+        <div class="card">
+          <div class="card-title">📊 SEO Score</div>
+          <div class="score-wrap">
+            <div class="score-ring" id="score-ring">
+              <span class="score-num" id="score-num"></span>
+              <span class="score-sub">/ 10</span>
             </div>
-            <p class="summary-text" id="ch-desc"></p>
+            <p class="score-expl" id="score-expl"></p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">✏️ Better Title Suggestions</div>
+          <ul class="sug-list" id="title-sugs"></ul>
+        </div>
+        <div class="card">
+          <div class="card-title">🏷️ Recommended Tags</div>
+          <div class="chips" id="better-tags"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🖼️ Thumbnail Concept</div>
+          <p class="prose" id="thumb-concept"></p>
+        </div>
+        <div class="card">
+          <div class="card-title">🚀 Reach Potential</div>
+          <p class="prose" id="reach-potential"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         CHANNEL ANALYSER
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="panel-channel" class="tab-panel">
+      <div class="page-title">📊 Channel Analyser</div>
+      <div class="page-subtitle">Full health analysis and growth opportunities for any channel</div>
+
+      <div class="card">
+        <div class="card-title">Paste a channel @handle or URL</div>
+        <div class="input-row">
+          <input id="channel-input" class="url-input" type="text"
+            placeholder="@learnwithsumit  or  youtube.com/@channelname"
+            onkeydown="if(event.key==='Enter') analyseChannel()" />
+          <button type="button" id="channel-btn" class="btn btn-primary" onclick="analyseChannel()">Analyse</button>
+        </div>
+        <p style="font-size:.75rem;color:var(--muted)">Supports @handle, full channel URLs, or direct channel IDs</p>
+      </div>
+
+      <div id="channel-loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Fetching channel data and running Claude analysis…</p>
+      </div>
+      <div id="channel-error" class="alert alert-error hidden"></div>
+
+      <div id="channel-results" class="hidden">
+        <div class="card">
+          <div class="card-title">📺 Channel Overview</div>
+          <div class="video-row">
+            <img id="ch-thumb" class="ch-avatar" src="" alt="channel" />
+            <div class="video-details">
+              <h3 id="ch-name" style="font-size:1rem;margin-bottom:.5rem"></h3>
+              <div class="meta-row">
+                <span class="meta">👥 <span id="ch-subs"></span> subscribers</span>
+                <span class="meta">👁️ <span id="ch-views"></span> total views</span>
+                <span class="meta">🎬 <span id="ch-videos"></span> videos</span>
+              </div>
+              <p class="summary-text" id="ch-desc"></p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">💪 Channel Health Score</div>
+          <div class="score-wrap">
+            <div class="score-ring" id="ch-score-ring">
+              <span class="score-num" id="ch-score-num"></span>
+              <span class="score-sub">/ 10</span>
+            </div>
+            <p class="score-expl" id="ch-score-expl"></p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🎯 Content Niche Analysis</div>
+          <p class="prose" id="ch-niche"></p>
+        </div>
+        <div class="card">
+          <div class="card-title">📅 Posting Frequency Recommendation</div>
+          <p class="prose" id="ch-frequency"></p>
+        </div>
+        <div class="card">
+          <div class="card-title">🏆 Top Performing Video Patterns</div>
+          <ul class="sug-list" id="ch-patterns"></ul>
+        </div>
+        <div class="card">
+          <div class="card-title">🌱 Growth Opportunities</div>
+          <ul class="sug-list" id="ch-growth"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         TRENDING IDEAS
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="panel-trending" class="tab-panel">
+      <div class="page-title">🔥 Trending Ideas</div>
+      <div class="page-subtitle">Hot video concepts from YouTube India — click any card to generate a script</div>
+
+      <div class="card">
+        <div class="refresh-row">
+          <p style="font-size:.8rem;color:var(--muted)">Based on trending Education &amp; English learning content in India</p>
+          <button type="button" class="btn btn-primary btn-sm" onclick="loadTrending()">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <div id="trending-loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Fetching trending videos and generating ideas…</p>
+      </div>
+      <div id="trending-error" class="alert alert-error hidden"></div>
+
+      <div id="trending-results" class="hidden">
+        <div class="card">
+          <div class="sec-label">⚡ Short Form — 1-2 mins · Click a title to generate a script</div>
+          <div class="ideas-grid" id="short-grid"></div>
+        </div>
+        <div class="card">
+          <div class="sec-label">🎬 Long Form — 7-10 mins · Click a title to generate a script</div>
+          <div class="ideas-grid" id="long-grid"></div>
+        </div>
+      </div>
+
+      <div id="trending-empty" class="empty">
+        <div class="empty-icon">💡</div>
+        <p>Generate viral video ideas based on what's trending in YouTube India right now.</p>
+        <button type="button" class="btn btn-primary" onclick="loadTrending()">Generate Ideas</button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         SCRIPT GENERATOR
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="panel-script" class="tab-panel">
+      <div class="page-title">📝 Script Generator</div>
+      <div class="page-subtitle">Full production scripts with hook, body, CTA and outro</div>
+
+      <div id="script-empty" class="empty">
+        <div class="empty-icon">📝</div>
+        <p>Go to Trending Ideas and click any video title card to generate a full script.</p>
+        <button type="button" class="btn btn-primary" onclick="switchTab('trending')">Browse Trending Ideas</button>
+      </div>
+      <div id="script-error" class="alert alert-error hidden"></div>
+      <div id="script-loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Claude is writing your full video script…</p>
+      </div>
+      <div id="script-results" class="hidden">
+        <div class="card">
+          <div class="card-title">📝 Full Video Script</div>
+          <h3 id="script-title" style="font-size:.92rem;margin-bottom:1.25rem;color:var(--text)"></h3>
+
+          <div class="script-part">
+            <div class="part-label">🎣 Hook — 0 to 15 seconds</div>
+            <div class="part-text" id="s-hook"></div>
+            <div class="part-dir" id="s-hook-dir"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="script-part">
+            <div class="part-label">👋 Intro</div>
+            <div class="part-text" id="s-intro"></div>
+            <div class="part-dir" id="s-intro-dir"></div>
+          </div>
+          <div class="divider"></div>
+          <div id="s-body"></div>
+          <div class="divider"></div>
+          <div class="script-part">
+            <div class="part-label">📢 Call to Action</div>
+            <div class="part-text" id="s-cta"></div>
+            <div class="part-dir" id="s-cta-dir"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="script-part">
+            <div class="part-label">🎬 Outro</div>
+            <div class="part-text" id="s-outro"></div>
+            <div class="part-dir" id="s-outro-dir"></div>
+          </div>
+        </div>
+
+        <!-- Use script in Video Creator button -->
+        <div class="card" style="text-align:center;padding:1rem">
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Ready to turn this script into an AI video?</p>
+          <button class="btn btn-primary" onclick="useScriptInCreator()">🎬 Use in Video Creator</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         VIDEO CREATOR  (4-step wizard)
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="panel-creator" class="tab-panel">
+      <div class="page-title">🎬 Video Creator</div>
+      <div class="page-subtitle">Turn any script into an AI avatar video with HeyGen</div>
+
+      <!-- Step progress bar -->
+      <div class="wizard-steps" id="wizard-steps">
+        <div class="wizard-step active" id="wstep-0">
+          <div class="step-circle" id="wcirc-0">1</div>
+          <span class="step-label">Script</span>
+        </div>
+        <div class="wizard-step" id="wstep-1">
+          <div class="step-circle" id="wcirc-1">2</div>
+          <span class="step-label">Avatar</span>
+        </div>
+        <div class="wizard-step" id="wstep-2">
+          <div class="step-circle" id="wcirc-2">3</div>
+          <span class="step-label">Generate</span>
+        </div>
+        <div class="wizard-step" id="wstep-3">
+          <div class="step-circle" id="wcirc-3">4</div>
+          <span class="step-label">Review</span>
+        </div>
+      </div>
+
+      <!-- ── Step 1: Script Input ── -->
+      <div id="creator-step-1" class="wizard-panel active">
+        <div class="card">
+          <div class="card-title">📄 Step 1 — Enter Your Script</div>
+
+          <!-- Source toggle -->
+          <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+            <button class="lang-btn active" id="src-manual" onclick="selectSource('manual')">✍️ Type / Paste Script</button>
+            <button class="lang-btn" id="src-generated" onclick="selectSource('generated')">📝 Use Generated Script</button>
+          </div>
+
+          <div id="generated-notice" class="alert alert-success hidden">
+            ✅ Script from Script Generator loaded below — you can edit it before continuing.
+          </div>
+
+          <textarea id="creator-script"
+            class="url-input"
+            placeholder="Paste or type your script here…"
+            oninput="updateScriptMeta()"></textarea>
+
+          <div style="display:flex;gap:1.5rem;margin:.65rem 0;font-size:.78rem;color:var(--muted)">
+            <span>Characters: <strong id="char-count">0</strong></span>
+            <span>Est. duration: <strong id="est-duration">0 sec</strong></span>
+          </div>
+
+          <!-- Language -->
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">Script language:</p>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem">
+            <button class="lang-btn active" id="clang-English" onclick="selectCreatorLang('English')">🇬🇧 English</button>
+            <button class="lang-btn" id="clang-Hindi" onclick="selectCreatorLang('Hindi')">🇮🇳 Hindi</button>
+            <button class="lang-btn" id="clang-Hinglish" onclick="selectCreatorLang('Hinglish')">🤝 Hinglish</button>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-primary" onclick="creatorNext(1)">Next: Choose Avatar →</button>
           </div>
         </div>
       </div>
 
-      <!-- Channel health score -->
-      <div class="card">
-        <div class="card-title">💪 Channel Health Score</div>
-        <div class="score-wrap">
-          <div class="score-ring" id="ch-score-ring">
-            <span class="score-num" id="ch-score-num"></span>
-            <span class="score-sub">/ 10</span>
+      <!-- ── Step 2: Avatar & Voice Selection ── -->
+      <div id="creator-step-2" class="wizard-panel">
+        <div class="card">
+          <div class="card-title">🤖 Step 2 — Select Avatar &amp; Voice</div>
+
+          <div id="avatar-loading" class="loading" style="padding:2rem">
+            <div class="spinner"></div>
+            <p>Loading your HeyGen avatars…</p>
           </div>
-          <p class="score-expl" id="ch-score-expl"></p>
+          <div id="avatar-error" class="alert alert-error hidden"></div>
+
+          <div id="avatar-section" class="hidden">
+            <p style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Choose an avatar:</p>
+            <div class="avatar-grid" id="avatar-grid"></div>
+
+            <div class="divider"></div>
+
+            <p style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">Choose a voice:</p>
+            <select class="voice-select" id="voice-select">
+              <option value="">Loading voices…</option>
+            </select>
+
+            <div style="margin-top:.85rem;font-size:.8rem;color:var(--muted)">
+              Estimated credits: <strong id="est-credits" style="color:var(--amber)">~0</strong>
+              <span style="font-size:.72rem"> (≈1 credit per second of video)</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:.5rem">
+          <button class="btn btn-secondary" onclick="creatorBack(2)">← Back</button>
+          <button class="btn btn-primary" onclick="creatorNext(2)">Next: Generate →</button>
         </div>
       </div>
 
-      <!-- Content niche -->
-      <div class="card">
-        <div class="card-title">🎯 Content Niche Analysis</div>
-        <p class="prose" id="ch-niche"></p>
-      </div>
+      <!-- ── Step 3: Generate Video ── -->
+      <div id="creator-step-3" class="wizard-panel">
+        <div class="card">
+          <div class="card-title">🎬 Step 3 — Generate Video</div>
 
-      <!-- Posting frequency -->
-      <div class="card">
-        <div class="card-title">📅 Posting Frequency Recommendation</div>
-        <p class="prose" id="ch-frequency"></p>
-      </div>
+          <!-- Config summary -->
+          <div id="gen-summary" style="margin-bottom:1.1rem">
+            <div style="display:flex;flex-wrap:wrap;gap:.5rem">
+              <span class="chip chip-purple" id="sum-avatar">Avatar: —</span>
+              <span class="chip chip-blue"   id="sum-voice">Voice: —</span>
+              <span class="chip chip-amber"  id="sum-lang">Language: —</span>
+              <span class="chip chip-green"  id="sum-chars">Script: 0 chars</span>
+            </div>
+          </div>
 
-      <!-- Top performing patterns -->
-      <div class="card">
-        <div class="card-title">🏆 Top Performing Video Patterns</div>
-        <ul class="sug-list" id="ch-patterns"></ul>
-      </div>
+          <!-- Format selection -->
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:.65rem">Choose video format:</p>
+          <div class="format-grid" id="format-grid">
+            <div class="format-card selected" data-fmt="shorts" onclick="selectFormat(this,'shorts')">
+              <div class="format-icon">📱</div>
+              <div class="format-name">YouTube Shorts</div>
+              <div class="format-dim">1080 × 1920 (Vertical)</div>
+            </div>
+            <div class="format-card" data-fmt="longform" onclick="selectFormat(this,'longform')">
+              <div class="format-icon">🖥️</div>
+              <div class="format-name">Long-form Video</div>
+              <div class="format-dim">1920 × 1080 (Horizontal)</div>
+            </div>
+          </div>
 
-      <!-- Growth opportunities -->
-      <div class="card">
-        <div class="card-title">🌱 Growth Opportunities</div>
-        <ul class="sug-list" id="ch-growth"></ul>
-      </div>
+          <!-- Generate button + status -->
+          <div id="gen-idle">
+            <button class="btn btn-primary" style="width:100%" onclick="startGeneration()">⚡ Generate Video Now</button>
+          </div>
 
-    </div><!-- /channel-results -->
-  </div><!-- /section-channel -->
+          <div id="gen-progress" class="hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+              <span style="font-size:.82rem;color:var(--muted)">Status:</span>
+              <span style="font-size:.82rem;font-weight:600" id="gen-status-text">Queued…</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar" id="gen-progress-bar" style="width:15%"></div>
+            </div>
+            <p style="font-size:.75rem;color:var(--muted);margin-top:.4rem">Polling every 10 seconds — this usually takes 2-5 minutes</p>
+          </div>
 
+          <div id="gen-done" class="hidden">
+            <div class="alert alert-success" style="margin-top:.85rem">✅ Video generated successfully!</div>
+            <div class="video-preview-wrap" id="video-preview-wrap" style="margin:.85rem 0"></div>
+            <div style="display:flex;gap:.65rem;justify-content:center">
+              <a id="video-download-btn" class="btn btn-ghost" href="#" download target="_blank">⬇️ Download Video</a>
+              <button class="btn btn-primary" onclick="creatorNext(3)">See AI Review →</button>
+            </div>
+          </div>
 
-  <!-- ══════════════════════════════════════════════════════════════════
-       SECTION 3 — TRENDING IDEAS (renumbered — was Section 2)
-  ══════════════════════════════════════════════════════════════════ -->
-  <div id="section-trending" class="section">
-
-    <div class="card">
-      <div class="refresh-row">
-        <div>
-          <div class="card-title" style="margin-bottom:.2rem">🔥 Trending Video Ideas</div>
-          <p style="font-size:.78rem;color:var(--muted)">Top trending Education videos on YouTube India · analysed by Claude</p>
+          <div id="gen-error" class="alert alert-error hidden" style="margin-top:.85rem"></div>
         </div>
-        <button type="button" class="btn btn-primary" onclick="loadTrending()">Refresh</button>
-      </div>
-    </div>
 
-    <div id="trending-loading" class="loading hidden">
-      <div class="spinner"></div>
-      <p>Fetching trending videos and generating ideas…</p>
-    </div>
-
-    <div id="trending-error" class="alert alert-error hidden"></div>
-
-    <div id="trending-results" class="hidden">
-      <div class="card">
-        <div class="sec-label">⚡ Short Form — 1-2 mins &nbsp;·&nbsp; Click a title to generate a script</div>
-        <div class="ideas-grid" id="short-grid"></div>
-      </div>
-      <div class="card">
-        <div class="sec-label">🎬 Long Form — 7-10 mins &nbsp;·&nbsp; Click a title to generate a script</div>
-        <div class="ideas-grid" id="long-grid"></div>
-      </div>
-    </div>
-
-    <div id="trending-empty" class="empty">
-      <div class="empty-icon">💡</div>
-      <p>Generate trending video ideas based on what's hot in YouTube India right now.</p>
-      <button type="button" class="btn btn-primary" onclick="loadTrending()">Generate Ideas</button>
-    </div>
-
-  </div><!-- /section-trending -->
-
-
-  <!-- ══════════════════════════════════════════════════════════════════
-       SECTION 3 — SCRIPT GENERATOR
-  ══════════════════════════════════════════════════════════════════ -->
-  <div id="section-script" class="section">
-
-    <div id="script-empty" class="empty">
-      <div class="empty-icon">📝</div>
-      <p>Go to Trending Ideas and click any video title to generate a full script.</p>
-      <button type="button" class="btn btn-primary" onclick="switchTab('trending')">Browse Ideas</button>
-    </div>
-
-    <div id="script-error" class="alert alert-error hidden"></div>
-
-    <div id="script-loading" class="loading hidden">
-      <div class="spinner"></div>
-      <p>Writing your full video script…</p>
-    </div>
-
-    <div id="script-results" class="hidden">
-      <div class="card">
-        <div class="card-title">📝 Full Video Script</div>
-        <h3 id="script-title" style="font-size:.92rem;margin-bottom:1.4rem;color:var(--text)"></h3>
-
-        <!-- Hook -->
-        <div class="script-part">
-          <div class="part-label">🎣 Hook — 0 to 15 seconds</div>
-          <div class="part-text" id="s-hook"></div>
-          <div class="part-dir"  id="s-hook-dir"></div>
+        <div style="margin-top:.5rem">
+          <button class="btn btn-secondary" onclick="creatorBack(3)">← Back</button>
         </div>
-        <div class="divider"></div>
+      </div>
 
-        <!-- Intro -->
-        <div class="script-part">
-          <div class="part-label">👋 Intro</div>
-          <div class="part-text" id="s-intro"></div>
-          <div class="part-dir"  id="s-intro-dir"></div>
+      <!-- ── Step 4: Claude Review ── -->
+      <div id="creator-step-4" class="wizard-panel">
+        <div class="card">
+          <div class="card-title">🤖 Step 4 — Claude AI Review</div>
+
+          <div id="review-loading" class="loading" style="padding:2rem">
+            <div class="spinner"></div>
+            <p>Claude is reviewing your script…</p>
+          </div>
+          <div id="review-error" class="alert alert-error hidden"></div>
+
+          <div id="review-results" class="hidden">
+            <!-- Engagement score -->
+            <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1.1rem;flex-wrap:wrap">
+              <div class="score-ring" id="review-score-ring">
+                <span class="score-num" id="review-score-num"></span>
+                <span class="score-sub">/ 10</span>
+              </div>
+              <div>
+                <div style="font-size:.75rem;color:var(--muted);margin-bottom:.25rem">Engagement Score</div>
+                <div style="font-size:.82rem;color:var(--text)">Hook: <span id="review-hook-pill"></span></div>
+                <div style="font-size:.8rem;color:var(--muted);margin-top:.25rem" id="review-hook-exp"></div>
+              </div>
+            </div>
+
+            <div class="review-grid">
+              <div class="review-card">
+                <div class="review-card-label">✏️ Suggested Title</div>
+                <div class="review-card-val" id="review-title"></div>
+              </div>
+              <div class="review-card">
+                <div class="review-card-label">🖼️ Thumbnail Text</div>
+                <div class="review-card-val" id="review-thumb-text"></div>
+              </div>
+              <div class="review-card">
+                <div class="review-card-label">🕐 Best Posting Time</div>
+                <div class="review-card-val" id="review-post-time"></div>
+              </div>
+              <div class="review-card">
+                <div class="review-card-label">📈 Estimated Reach</div>
+                <div class="review-card-val" id="review-reach"></div>
+              </div>
+            </div>
+
+            <div class="card" style="margin:0;border-radius:10px">
+              <div class="review-card-label" style="margin-bottom:.5rem">📄 Suggested Description</div>
+              <p class="prose" id="review-description"></p>
+            </div>
+          </div>
         </div>
-        <div class="divider"></div>
 
-        <!-- Body (rendered dynamically) -->
-        <div id="s-body"></div>
-
-        <!-- CTA -->
-        <div class="divider"></div>
-        <div class="script-part">
-          <div class="part-label">📢 Call to Action</div>
-          <div class="part-text" id="s-cta"></div>
-          <div class="part-dir"  id="s-cta-dir"></div>
-        </div>
-        <div class="divider"></div>
-
-        <!-- Outro -->
-        <div class="script-part">
-          <div class="part-label">🎬 Outro</div>
-          <div class="part-text" id="s-outro"></div>
-          <div class="part-dir"  id="s-outro-dir"></div>
+        <div style="margin-top:.5rem;display:flex;gap:.65rem">
+          <button class="btn btn-secondary" onclick="creatorBack(4)">← Back</button>
+          <button class="btn btn-ghost" onclick="resetCreator()">🔄 Create Another Video</button>
         </div>
       </div>
     </div>
 
-  </div><!-- /section-script -->
+    <!-- ════════════════════════════════════════════════════════════════
+         GROWTH HACKS
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="panel-growth" class="tab-panel">
+      <div class="page-title">🚀 Growth Hacks</div>
+      <div class="page-subtitle">Niche-specific strategies for English learning channels targeting India</div>
 
-
-  <!-- ══════════════════════════════════════════════════════════════════
-       SECTION 5 — GROWTH HACKS
-  ══════════════════════════════════════════════════════════════════ -->
-  <div id="section-growth" class="section">
-
-    <div class="card">
-      <div class="refresh-row">
-        <div>
-          <div class="card-title" style="margin-bottom:.2rem">💡 Growth Hacks</div>
-          <p style="font-size:.78rem;color:var(--muted)">10 actionable hacks for English learning channels targeting Indians · powered by Claude</p>
+      <div class="card">
+        <div class="refresh-row">
+          <p style="font-size:.8rem;color:var(--muted)">10 actionable hacks · powered by Claude AI</p>
+          <button type="button" class="btn btn-primary btn-sm" onclick="loadGrowthHacks()">Generate</button>
         </div>
-        <button type="button" class="btn btn-primary" onclick="loadGrowthHacks()">Generate</button>
+      </div>
+
+      <div id="growth-loading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Claude is crafting your personalised growth playbook…</p>
+      </div>
+      <div id="growth-error" class="alert alert-error hidden"></div>
+
+      <div id="growth-results" class="hidden">
+        <div id="growth-hacks-list"></div>
+      </div>
+
+      <div id="growth-empty" class="empty">
+        <div class="empty-icon">🚀</div>
+        <p>Get 10 powerful, niche-specific growth hacks for your English learning YouTube channel.</p>
+        <button type="button" class="btn btn-primary" onclick="loadGrowthHacks()">Generate Growth Hacks</button>
       </div>
     </div>
 
-    <div id="growth-loading" class="loading hidden">
-      <div class="spinner"></div>
-      <p>Claude is crafting your personalised growth playbook…</p>
+    <!-- ════════════════════════════════════════════════════════════════
+         SETTINGS
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="panel-settings" class="tab-panel">
+      <div class="page-title">⚙️ Settings</div>
+      <div class="page-subtitle">API status, usage and keyboard shortcuts</div>
+
+      <div class="card">
+        <div class="card-title">🔑 API Keys</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">YouTube Data API v3</div>
+            <div class="settings-val">Used for video & channel data</div>
+          </div>
+          <span class="key-status-ok" id="setting-yt-status">Checking…</span>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Anthropic / Claude API</div>
+            <div class="settings-val">Used for all AI analysis</div>
+          </div>
+          <span class="key-status-ok" id="setting-ai-status">Checking…</span>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">HeyGen API</div>
+            <div class="settings-val">Used for AI video generation</div>
+          </div>
+          <span id="setting-hg-status" class="key-status-ok">Set in .env</span>
+        </div>
+        <p style="font-size:.75rem;color:var(--muted);margin-top:.75rem">
+          Keys are loaded from the <code style="color:var(--primary-lt)">.env</code> file on the server. Never exposed in the browser.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⌨️ Keyboard Shortcuts</div>
+        <div class="settings-row">
+          <div class="settings-label">Open Video Analyser</div>
+          <div class="kbd"><kbd>Alt</kbd><kbd>1</kbd></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Open Channel Analyser</div>
+          <div class="kbd"><kbd>Alt</kbd><kbd>2</kbd></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Open Trending Ideas</div>
+          <div class="kbd"><kbd>Alt</kbd><kbd>3</kbd></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Open Video Creator</div>
+          <div class="kbd"><kbd>Alt</kbd><kbd>4</kbd></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Open Growth Hacks</div>
+          <div class="kbd"><kbd>Alt</kbd><kbd>5</kbd></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 Usage This Session</div>
+        <div class="settings-row">
+          <div class="settings-label">Videos analysed</div>
+          <span style="font-size:.875rem;font-weight:600" id="settings-stat-v">0</span>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Scripts generated</div>
+          <span style="font-size:.875rem;font-weight:600" id="settings-stat-s">0</span>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">AI videos created</div>
+          <span style="font-size:.875rem;font-weight:600" id="settings-stat-av">0</span>
+        </div>
+        <div style="margin-top:1rem">
+          <button class="btn btn-danger btn-sm" onclick="resetStats()">🗑️ Reset Stats</button>
+        </div>
+      </div>
     </div>
 
-    <div id="growth-error" class="alert alert-error hidden"></div>
-
-    <div id="growth-results" class="hidden">
-      <div id="growth-hacks-list"></div>
-    </div>
-
-    <div id="growth-empty" class="empty">
-      <div class="empty-icon">🚀</div>
-      <p>Generate 10 powerful, niche-specific growth hacks for your English learning YouTube channel.</p>
-      <button type="button" class="btn btn-primary" onclick="loadGrowthHacks()">Generate Growth Hacks</button>
-    </div>
-
-  </div><!-- /section-growth -->
-
-</div><!-- /content -->
+  </div><!-- /content-area -->
+</div><!-- /main-wrap -->
 
 
-<!-- ─── Script-confirm modal ───────────────────────────────────────────── -->
+<!-- ─── Bottom nav (mobile) ──────────────────────────────────────────────── -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-items">
+    <button class="bottom-nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+      <span class="bn-icon">🏠</span>Home
+    </button>
+    <button class="bottom-nav-item" data-tab="analyser" onclick="switchTab('analyser')">
+      <span class="bn-icon">🔍</span>Analyse
+    </button>
+    <button class="bottom-nav-item" data-tab="trending" onclick="switchTab('trending')">
+      <span class="bn-icon">🔥</span>Trending
+    </button>
+    <button class="bottom-nav-item" data-tab="creator" onclick="switchTab('creator')">
+      <span class="bn-icon">🎬</span>Create
+    </button>
+    <button class="bottom-nav-item" data-tab="growth" onclick="switchTab('growth')">
+      <span class="bn-icon">🚀</span>Growth
+    </button>
+  </div>
+</nav>
+
+
+<!-- ─── Script language modal ────────────────────────────────────────────── -->
 <div id="modal" class="overlay hidden">
   <div class="modal">
     <h3>Generate script for this?</h3>
     <div class="modal-idea" id="modal-idea-title"></div>
     <p class="modal-hint">Claude will write a full production script: hook, intro, body sections, CTA and outro.</p>
 
-    <!-- Language selection — Feature 3: Multi-language Script Generator -->
     <div style="margin-bottom:1.25rem">
       <p style="font-size:.82rem;color:var(--muted);margin-bottom:.6rem">Generate script in:</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
@@ -661,417 +1341,964 @@
 
     <div class="modal-actions">
       <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button type="button" class="btn btn-primary"   onclick="confirmScript()">Yes, Generate ✨</button>
+      <button type="button" class="btn btn-primary" onclick="confirmScript()">Yes, Generate ✨</button>
     </div>
   </div>
 </div>
 
 
-<!-- ─── JavaScript ─────────────────────────────────────────────────────── -->
+<!-- ─── Toast container ──────────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════════════════ -->
 <script>
-  // ── State ─────────────────────────────────────────────────────────────────
-  let pendingIdea        = null;
-  let selectedLanguage   = 'English';  // chosen in the script-language modal
-  let analyserHasResults = false;
-  let channelHasResults  = false;
-  let trendingHasResults = false;
-  let growthHasResults   = false;
+"use strict";
 
-  // ── Utilities ────────────────────────────────────────────────────────────
+// ─── State ──────────────────────────────────────────────────────────────────
+let pendingIdea        = null;
+let selectedLanguage   = 'English';
+let analyserHasResults = false;
+let channelHasResults  = false;
+let trendingHasResults = false;
+let growthHasResults   = false;
 
-  function $(id) { return document.getElementById(id); }
-  function show(id) { $(id).classList.remove('hidden'); }
-  function hide(id) { $(id).classList.add('hidden'); }
-  function fmtNum(n) { return parseInt(n).toLocaleString('en-IN'); }
-  function setText(id, val) { $(id).textContent = val; }
+// Video Creator state
+let creatorScript      = '';
+let creatorLanguage    = 'English';
+let selectedAvatarId   = '';
+let selectedAvatarName = '';
+let selectedVoiceId    = '';
+let selectedVoiceName  = '';
+let selectedFormat     = 'shorts';
+let currentVideoId     = '';
+let pollInterval       = null;
 
-  // ── Tab switching ─────────────────────────────────────────────────────────
+// Stats (persisted in localStorage)
+const STATS_KEY = 'ycid_stats_v1';
 
-  function switchTab(tab) {
-    // Match buttons via data-tab attribute — order-independent
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.tab === tab);
+function getStats() {
+  try {
+    return JSON.parse(localStorage.getItem(STATS_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function bumpStat(key, amount = 1) {
+  const s = getStats();
+  s[key] = (s[key] || 0) + amount;
+  localStorage.setItem(STATS_KEY, JSON.stringify(s));
+  refreshDashboardStats();
+}
+
+function refreshDashboardStats() {
+  const s = getStats();
+  setText('stat-videos',    s.videos   || 0);
+  setText('stat-scripts',   s.scripts  || 0);
+  setText('stat-ai-videos', s.ai_videos|| 0);
+  setText('stat-credits',   s.credits  || 0);
+  setText('settings-stat-v',  s.videos   || 0);
+  setText('settings-stat-s',  s.scripts  || 0);
+  setText('settings-stat-av', s.ai_videos|| 0);
+}
+
+function resetStats() {
+  if (!confirm('Reset all usage stats?')) return;
+  localStorage.removeItem(STATS_KEY);
+  refreshDashboardStats();
+  toast('Stats reset', 'success');
+}
+
+// Activity feed (persisted)
+const ACT_KEY = 'ycid_activity_v1';
+
+function logActivity(text) {
+  let feed;
+  try { feed = JSON.parse(localStorage.getItem(ACT_KEY) || '[]'); } catch { feed = []; }
+  feed.unshift({ text, time: Date.now() });
+  if (feed.length > 20) feed.pop();
+  localStorage.setItem(ACT_KEY, JSON.stringify(feed));
+  renderActivityFeed();
+}
+
+function renderActivityFeed() {
+  let feed;
+  try { feed = JSON.parse(localStorage.getItem(ACT_KEY) || '[]'); } catch { feed = []; }
+  const el = $('activity-feed');
+  if (!feed.length) {
+    el.innerHTML = `<div class="empty" style="padding:1.5rem 0"><div class="empty-icon">📭</div><p style="margin-bottom:0">No activity yet — start analysing or creating!</p></div>`;
+    return;
+  }
+  el.innerHTML = feed.slice(0, 8).map(a => `
+    <div class="activity-item">
+      <div class="activity-dot"></div>
+      <div class="activity-text">${escapeHTML(a.text)}</div>
+      <div class="activity-time">${timeAgo(a.time)}</div>
+    </div>`).join('');
+}
+
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60)   return 'just now';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+function $(id)         { return document.getElementById(id); }
+function show(id)      { const el = $(id); if (el) el.classList.remove('hidden'); }
+function hide(id)      { const el = $(id); if (el) el.classList.add('hidden'); }
+function setText(id,v) { const el = $(id); if (el) el.textContent = v; }
+function fmtNum(n)     { return parseInt(n).toLocaleString('en-IN'); }
+
+// XSS-safe escaping
+function escapeHTML(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+function escapeAttr(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;').replace(/</g,'&lt;');
+}
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
+
+function toast(msg, type = 'info') {
+  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+  const div = document.createElement('div');
+  div.className = `toast toast-${type}`;
+  div.innerHTML = `<span>${icon}</span><span>${escapeHTML(msg)}</span>`;
+  $('toast-container').appendChild(div);
+  setTimeout(() => {
+    div.style.animation = 'toastOut .25s ease forwards';
+    setTimeout(() => div.remove(), 260);
+  }, 3500);
+}
+
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
+
+function toggleSidebar() {
+  $('sidebar').classList.toggle('open');
+  $('sidebar-overlay').classList.toggle('show');
+}
+function closeSidebar() {
+  $('sidebar').classList.remove('open');
+  $('sidebar-overlay').classList.remove('show');
+}
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+
+const tabNames = {
+  dashboard: 'Dashboard',
+  analyser:  'Video Analyser',
+  channel:   'Channel Analyser',
+  trending:  'Trending Ideas',
+  script:    'Script Generator',
+  creator:   'Video Creator',
+  growth:    'Growth Hacks',
+  settings:  'Settings',
+};
+
+function switchTab(tab) {
+  // Sidebar nav buttons
+  document.querySelectorAll('.nav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab)
+  );
+  // Bottom nav buttons
+  document.querySelectorAll('.bottom-nav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab)
+  );
+  // Tab panels
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  $('panel-' + tab).classList.add('active');
+
+  // Breadcrumb
+  $('breadcrumb').innerHTML = `YCID &rsaquo; <strong>${escapeHTML(tabNames[tab] || tab)}</strong>`;
+
+  // Restore results visibility
+  if (tab === 'analyser' && analyserHasResults) show('analyser-results');
+  if (tab === 'channel'  && channelHasResults)  show('channel-results');
+  if (tab === 'trending' && trendingHasResults) {
+    show('trending-results'); hide('trending-empty'); hide('trending-error');
+  }
+  if (tab === 'growth' && growthHasResults) {
+    show('growth-results'); hide('growth-empty');
+  }
+  // Load avatars when Video Creator is opened for the first time
+  if (tab === 'creator' && !$('avatar-section').classList.contains('was-loaded')) {
+    loadAvatars();
+  }
+
+  closeSidebar();
+}
+
+// ─── Video Analyser ───────────────────────────────────────────────────────────
+
+async function analyseVideo() {
+  const url = $('video-url').value.trim();
+  if (!url) { showSectionError('analyser', 'Please paste a YouTube URL first.'); return; }
+
+  hide('analyser-results');
+  hide('analyser-error');
+  show('analyser-loading');
+  $('analyse-btn').disabled = true;
+
+  try {
+    const res  = await fetch('/api/analyze-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
     });
-
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    $('section-' + tab).classList.add('active');
-
-    // Restore result-panel visibility when the user returns to a tab
-    if (tab === 'analyser' && analyserHasResults) show('analyser-results');
-    if (tab === 'channel'  && channelHasResults)  show('channel-results');
-    if (tab === 'trending' && trendingHasResults) {
-      show('trending-results');
-      hide('trending-empty');
-      hide('trending-error');
-    }
-    if (tab === 'growth' && growthHasResults) {
-      show('growth-results');
-      hide('growth-empty');
-    }
+    const data = await res.json();
+    if (!res.ok) { showSectionError('analyser', data.error || 'Something went wrong.'); return; }
+    renderAnalyser(data);
+    bumpStat('videos');
+    logActivity(`Analysed video: ${data.video_data.title}`);
+    toast('Video analysed successfully!', 'success');
+  } catch {
+    showSectionError('analyser', 'Network error — please check your connection.');
+  } finally {
+    hide('analyser-loading');
+    $('analyse-btn').disabled = false;
   }
+}
 
-  // ── Section 1: Video Analyser ─────────────────────────────────────────────
+function renderAnalyser({ video_data: v, analysis: a }) {
+  $('vid-thumb').src = v.thumbnail;
+  setText('vid-title',    v.title);
+  setText('vid-channel',  v.channel);
+  setText('vid-views',    fmtNum(v.views));
+  setText('vid-likes',    fmtNum(v.likes));
+  setText('vid-language', a.detected_language || 'Unknown');
+  setText('vid-summary',  a.summary);
 
-  async function analyseVideo() {
-    const url = $('video-url').value.trim();
-    if (!url) { showError('analyser', 'Please paste a YouTube URL first.'); return; }
+  const score = a.seo_score;
+  const color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+  $('score-ring').style.background = `conic-gradient(${color} ${score*36}deg, rgba(255,255,255,.06) 0deg)`;
+  $('score-ring').style.boxShadow  = `0 0 24px ${color}44`;
+  $('score-num').textContent = score;
+  $('score-num').style.color = color;
+  setText('score-expl', a.seo_explanation);
 
-    hide('analyser-results');
-    hide('analyser-error');
-    show('analyser-loading');
-    $('analyse-btn').disabled = true;
+  $('title-sugs').innerHTML = a.title_suggestions
+    .map(t => `<li class="sug-item">${escapeHTML(t)}</li>`).join('');
 
-    try {
-      const res  = await fetch('/api/analyze-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await res.json();
-      if (!res.ok) { showError('analyser', data.error || 'Something went wrong.'); return; }
-      renderAnalyser(data);
-    } catch {
-      showError('analyser', 'Network error — please check your connection.');
-    } finally {
-      hide('analyser-loading');
-      $('analyse-btn').disabled = false;
-    }
+  $('better-tags').innerHTML = a.better_tags
+    .map(t => `<span class="chip chip-green">${escapeHTML(t)}</span>`).join('');
+
+  setText('thumb-concept',   a.thumbnail_concept);
+  setText('reach-potential', a.reach_potential);
+
+  analyserHasResults = true;
+  show('analyser-results');
+}
+
+// ─── Channel Analyser ─────────────────────────────────────────────────────────
+
+async function analyseChannel() {
+  const channel = $('channel-input').value.trim();
+  if (!channel) { showSectionError('channel', 'Please enter a channel URL or @handle.'); return; }
+
+  hide('channel-results');
+  hide('channel-error');
+  show('channel-loading');
+  $('channel-btn').disabled = true;
+
+  try {
+    const res  = await fetch('/api/analyze-channel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel })
+    });
+    const data = await res.json();
+    if (!res.ok) { showSectionError('channel', data.error || 'Something went wrong.'); return; }
+    renderChannel(data);
+    logActivity(`Analysed channel: ${data.channel_data.name}`);
+    toast('Channel analysed!', 'success');
+  } catch {
+    showSectionError('channel', 'Network error — please check your connection.');
+  } finally {
+    hide('channel-loading');
+    $('channel-btn').disabled = false;
   }
+}
 
-  function renderAnalyser({ video_data: v, analysis: a }) {
-    $('vid-thumb').src = v.thumbnail;
-    setText('vid-title',    v.title);
-    setText('vid-channel',  v.channel);
-    setText('vid-views',    fmtNum(v.views));
-    setText('vid-likes',    fmtNum(v.likes));
-    setText('vid-language', a.detected_language || 'Unknown');  // Feature 2
-    setText('vid-summary',  a.summary);
+function renderChannel({ channel_data: c, analysis: a }) {
+  $('ch-thumb').src = c.thumbnail;
+  setText('ch-name',   c.name);
+  setText('ch-subs',   fmtNum(c.subscribers));
+  setText('ch-views',  fmtNum(c.total_views));
+  setText('ch-videos', c.video_count.toLocaleString('en-IN'));
+  setText('ch-desc',   c.description);
 
-    // SEO score ring
-    const score = a.seo_score;
-    const color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
-    $('score-ring').style.background =
-      `conic-gradient(${color} ${score * 36}deg, rgba(255,255,255,.06) 0deg)`;
-    $('score-ring').style.boxShadow = `0 0 24px ${color}44`;
-    $('score-num').textContent = score;
-    $('score-num').style.color = color;
-    setText('score-expl', a.seo_explanation);
+  const score = a.health_score;
+  const color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+  $('ch-score-ring').style.background = `conic-gradient(${color} ${score*36}deg, rgba(255,255,255,.06) 0deg)`;
+  $('ch-score-ring').style.boxShadow  = `0 0 24px ${color}44`;
+  $('ch-score-num').textContent = score;
+  $('ch-score-num').style.color = color;
+  setText('ch-score-expl', a.health_explanation);
 
-    $('title-sugs').innerHTML = a.title_suggestions
-      .map(t => `<li class="sug-item">${escapeHTML(t)}</li>`)
-      .join('');
+  setText('ch-niche',     a.niche_analysis);
+  setText('ch-frequency', a.posting_frequency_recommendation);
 
-    $('better-tags').innerHTML = a.better_tags
-      .map(t => `<span class="chip chip-green">${escapeHTML(t)}</span>`)
-      .join('');
+  $('ch-patterns').innerHTML = (a.top_performing_patterns || [])
+    .map(p => `<li class="sug-item">${escapeHTML(p)}</li>`).join('');
+  $('ch-growth').innerHTML = (a.growth_opportunities || [])
+    .map(o => `<li class="sug-item">${escapeHTML(o)}</li>`).join('');
 
-    setText('thumb-concept',   a.thumbnail_concept);
-    setText('reach-potential', a.reach_potential);
+  channelHasResults = true;
+  show('channel-results');
+}
 
-    analyserHasResults = true;
-    show('analyser-results');
+// ─── Trending Ideas ───────────────────────────────────────────────────────────
+
+async function loadTrending() {
+  hide('trending-empty');
+  hide('trending-results');
+  hide('trending-error');
+  show('trending-loading');
+
+  try {
+    const res  = await fetch('/api/trending');
+    const data = await res.json();
+    if (!res.ok) { showSectionError('trending', data.error || 'Something went wrong.'); return; }
+    renderTrending(data);
+  } catch {
+    showSectionError('trending', 'Network error — please check your connection.');
+  } finally {
+    hide('trending-loading');
   }
+}
 
-  // ── Section 2: Channel Analyser ───────────────────────────────────────────
-
-  async function analyseChannel() {
-    const channel = $('channel-input').value.trim();
-    if (!channel) { showError('channel', 'Please enter a channel URL or @handle.'); return; }
-
-    hide('channel-results');
-    hide('channel-error');
-    show('channel-loading');
-    $('channel-btn').disabled = true;
-
-    try {
-      const res  = await fetch('/api/analyze-channel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel })
-      });
-      const data = await res.json();
-      if (!res.ok) { showError('channel', data.error || 'Something went wrong.'); return; }
-      renderChannel(data);
-    } catch {
-      showError('channel', 'Network error — please check your connection.');
-    } finally {
-      hide('channel-loading');
-      $('channel-btn').disabled = false;
-    }
+function renderTrending(data) {
+  const shorts = Array.isArray(data.short_form_ideas) ? data.short_form_ideas : [];
+  const longs  = Array.isArray(data.long_form_ideas)  ? data.long_form_ideas  : [];
+  if (!shorts.length && !longs.length) {
+    showSectionError('trending', 'No ideas returned. Please refresh.');
+    return;
   }
+  $('short-grid').innerHTML = shorts.map(i => ideaCardHTML(i, 'badge-amber')).join('');
+  $('long-grid').innerHTML  = longs.map(i  => ideaCardHTML(i, 'badge-blue')).join('');
+  trendingHasResults = true;
+  show('trending-results');
+}
 
-  function renderChannel({ channel_data: c, analysis: a }) {
-    $('ch-thumb').src = c.thumbnail;
-    setText('ch-name',   c.name);
-    setText('ch-subs',   fmtNum(c.subscribers));
-    setText('ch-views',  fmtNum(c.total_views));
-    setText('ch-videos', c.video_count.toLocaleString('en-IN'));
-    setText('ch-desc',   c.description);
-
-    // Health score ring (same style as SEO ring)
-    const score = a.health_score;
-    const color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
-    $('ch-score-ring').style.background =
-      `conic-gradient(${color} ${score * 36}deg, rgba(255,255,255,.06) 0deg)`;
-    $('ch-score-ring').style.boxShadow = `0 0 24px ${color}44`;
-    $('ch-score-num').textContent = score;
-    $('ch-score-num').style.color = color;
-    setText('ch-score-expl', a.health_explanation);
-
-    setText('ch-niche',     a.niche_analysis);
-    setText('ch-frequency', a.posting_frequency_recommendation);
-
-    const patterns = Array.isArray(a.top_performing_patterns) ? a.top_performing_patterns : [];
-    $('ch-patterns').innerHTML = patterns
-      .map(p => `<li class="sug-item">${escapeHTML(p)}</li>`)
-      .join('');
-
-    const opps = Array.isArray(a.growth_opportunities) ? a.growth_opportunities : [];
-    $('ch-growth').innerHTML = opps
-      .map(o => `<li class="sug-item">${escapeHTML(o)}</li>`)
-      .join('');
-
-    channelHasResults = true;
-    show('channel-results');
-  }
-
-  // ── Section 3: Trending Ideas ─────────────────────────────────────────────
-
-  async function loadTrending() {
-    hide('trending-empty');
-    hide('trending-results');
-    hide('trending-error');
-    show('trending-loading');
-
-    try {
-      const res  = await fetch('/api/trending');
-      const data = await res.json();
-      if (!res.ok) { showError('trending', data.error || 'Something went wrong.'); return; }
-      renderTrending(data);
-    } catch {
-      showError('trending', 'Network error — please check your connection.');
-    } finally {
-      hide('trending-loading');
-    }
-  }
-
-  function renderTrending(data) {
-    // Validate before calling .map() — Claude occasionally returns a different shape
-    const shorts = Array.isArray(data.short_form_ideas) ? data.short_form_ideas : [];
-    const longs  = Array.isArray(data.long_form_ideas)  ? data.long_form_ideas  : [];
-
-    if (shorts.length === 0 && longs.length === 0) {
-      showError('trending', 'No ideas returned. Please try refreshing.');
-      return;
-    }
-
-    $('short-grid').innerHTML = shorts.map(idea => ideaCardHTML(idea, 'badge-amber')).join('');
-    $('long-grid').innerHTML  = longs.map(idea  => ideaCardHTML(idea, 'badge-blue')).join('');
-
-    trendingHasResults = true;
-    show('trending-results');
-  }
-
-  function ideaCardHTML(idea, badgeClass) {
-    // Store idea data in data-attributes — safer than inline onclick strings
-    const title   = escapeAttr(idea.title);
-    const tagline = escapeAttr(idea.tagline);
-    const dur     = escapeAttr(idea.duration);
-    const why     = escapeHTML(idea.why_trending || '🔥 Trending');
-    return `
-      <div class="idea-card"
-           data-title="${title}" data-tagline="${tagline}" data-duration="${dur}"
-           onclick="openModal(this)">
-        <div class="idea-title">${escapeHTML(idea.title)}</div>
-        <div class="idea-tagline">${escapeHTML(idea.tagline)}</div>
-        <div class="idea-footer">
-          <span class="badge ${badgeClass}">${escapeHTML(idea.duration)}</span>
-          <span class="why">${why}</span>
-        </div>
-      </div>`;
-  }
-
-  // ── Modal (language selection + script confirm) ────────────────────────────
-
-  function openModal(el) {
-    pendingIdea = {
-      title:    el.dataset.title,
-      tagline:  el.dataset.tagline,
-      duration: el.dataset.duration
-    };
-    setText('modal-idea-title', pendingIdea.title);
-    // Reset language selector to English each time the modal opens
-    selectedLanguage = 'English';
-    document.querySelectorAll('.lang-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
-    show('modal');
-  }
-
-  function closeModal() {
-    hide('modal');
-    pendingIdea = null;
-  }
-
-  // Feature 3: language button selection handler
-  function selectLang(btn, lang) {
-    selectedLanguage = lang;
-    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-  }
-
-  // Close modal when user clicks the dark overlay
-  $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
-
-  // ── Section 4: Script Generator ───────────────────────────────────────────
-
-  async function confirmScript() {
-    const idea = pendingIdea;  // capture before closeModal() resets it
-    closeModal();
-    switchTab('script');
-    if (!idea) return;
-
-    hide('script-empty');
-    hide('script-results');
-    hide('script-error');
-    show('script-loading');
-
-    try {
-      const res = await fetch('/api/generate-script', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...idea, language: selectedLanguage })  // Feature 3
-      });
-      let data;
-      try { data = await res.json(); }
-      catch { throw new Error('Server returned an unreadable response. Please try again.'); }
-
-      if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
-      renderScript(data);
-    } catch (err) {
-      showScriptError(err.message);
-    } finally {
-      hide('script-loading');
-    }
-  }
-
-  function renderScript({ script: s, title, language }) {
-    // Show language badge in the script title when not English
-    const langBadge = (language && language !== 'English')
-      ? ` <span class="badge badge-blue" style="vertical-align:middle;font-size:.7rem">${escapeHTML(language)}</span>`
-      : '';
-    $('script-title').innerHTML = escapeHTML(title) + langBadge;
-
-    setText('s-hook',      s.hook.text);
-    setText('s-hook-dir',  '📌 ' + s.hook.direction);
-    setText('s-intro',     s.intro.text);
-    setText('s-intro-dir', '📌 ' + s.intro.direction);
-
-    $('s-body').innerHTML = s.body.map((sec, i) => `
-      <div class="script-part">
-        <div class="part-label">📖 ${escapeHTML(sec.section)}</div>
-        <div class="part-text">${escapeHTML(sec.text)}</div>
-        <div class="part-dir">📌 ${escapeHTML(sec.direction)}</div>
+function ideaCardHTML(idea, badgeClass) {
+  const title   = escapeAttr(idea.title);
+  const tagline = escapeAttr(idea.tagline);
+  const dur     = escapeAttr(idea.duration);
+  const why     = escapeHTML(idea.why_trending || '🔥 Trending');
+  return `
+    <div class="idea-card"
+         data-title="${title}" data-tagline="${tagline}" data-duration="${dur}"
+         onclick="openModal(this)">
+      <div class="idea-title">${escapeHTML(idea.title)}</div>
+      <div class="idea-tagline">${escapeHTML(idea.tagline)}</div>
+      <div class="idea-footer">
+        <span class="badge ${badgeClass}">${escapeHTML(idea.duration)}</span>
+        <span class="why">${why}</span>
       </div>
-      ${i < s.body.length - 1 ? '<div class="divider"></div>' : ''}
-    `).join('');
+    </div>`;
+}
 
-    setText('s-cta',       s.cta.text);
-    setText('s-cta-dir',   '📌 ' + s.cta.direction);
-    setText('s-outro',     s.outro.text);
-    setText('s-outro-dir', '📌 ' + s.outro.direction);
+// ─── Script modal ─────────────────────────────────────────────────────────────
 
-    show('script-results');
-  }
+function openModal(el) {
+  pendingIdea = { title: el.dataset.title, tagline: el.dataset.tagline, duration: el.dataset.duration };
+  setText('modal-idea-title', pendingIdea.title);
+  selectedLanguage = 'English';
+  document.querySelectorAll('#modal .lang-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+  show('modal');
+}
 
-  // ── Section 5: Growth Hacks ───────────────────────────────────────────────
+function closeModal() { hide('modal'); pendingIdea = null; }
 
-  async function loadGrowthHacks() {
-    hide('growth-empty');
-    hide('growth-results');
-    hide('growth-error');
-    show('growth-loading');
+function selectLang(btn, lang) {
+  selectedLanguage = lang;
+  document.querySelectorAll('#modal .lang-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
 
-    try {
-      const res  = await fetch('/api/growth-hacks');
-      const data = await res.json();
-      if (!res.ok) { showGrowthError(data.error || 'Something went wrong.'); return; }
-      renderGrowthHacks(data);
-    } catch {
-      showGrowthError('Network error — please check your connection.');
-    } finally {
-      hide('growth-loading');
-    }
-  }
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
 
-  function renderGrowthHacks(data) {
-    const hacks = Array.isArray(data.hacks) ? data.hacks : [];
-    if (hacks.length === 0) { showGrowthError('No hacks returned. Please try again.'); return; }
+// ─── Script Generator ─────────────────────────────────────────────────────────
 
-    // Map category names to chip colours
-    const catCls = {
-      'Posting Strategy': 'chip-purple',
-      'Thumbnail':        'chip-green',
-      'Title Formula':    'chip-green',
-      'Engagement':       'chip-purple',
-      'Collaboration':    'chip-green',
-      'Monetisation':     'chip-purple',
-    };
+async function confirmScript() {
+  const idea = pendingIdea;
+  closeModal();
+  switchTab('script');
+  if (!idea) return;
 
-    $('growth-hacks-list').innerHTML = hacks.map((hack, i) => {
-      const cls = catCls[hack.category] || 'chip-purple';
-      return `
-        <div class="card">
-          <div style="display:flex;gap:1rem;align-items:flex-start">
-            <div class="hack-num">${i + 1}</div>
-            <div style="flex:1">
-              <div style="font-size:.92rem;font-weight:700;margin-bottom:.4rem;color:var(--text)">${escapeHTML(hack.title)}</div>
-              <p class="prose" style="margin-bottom:.65rem">${escapeHTML(hack.description)}</p>
-              <span class="chip ${cls}">${escapeHTML(hack.category)}</span>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+  hide('script-empty');
+  hide('script-results');
+  hide('script-error');
+  show('script-loading');
 
-    growthHasResults = true;
-    show('growth-results');
-  }
-
-  // ── Error helpers ─────────────────────────────────────────────────────────
-
-  function showError(section, msg) {
-    const el = $(section + '-error');
-    el.textContent = '⚠️  ' + msg;
-    show(section + '-error');
-    if (section === 'trending') show('trending-empty');
-  }
-
-  function showScriptError(msg) {
+  try {
+    const res = await fetch('/api/generate-script', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...idea, language: selectedLanguage })
+    });
+    let data;
+    try { data = await res.json(); }
+    catch { throw new Error('Server returned an unreadable response. Please try again.'); }
+    if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+    renderScript(data);
+    bumpStat('scripts');
+    logActivity(`Generated script: ${idea.title}`);
+    toast('Script generated!', 'success');
+  } catch (err) {
     const el = $('script-error');
-    el.textContent = '⚠️  ' + msg;
+    el.textContent = '⚠️  ' + err.message;
     show('script-error');
     show('script-empty');
+  } finally {
+    hide('script-loading');
+  }
+}
+
+function renderScript({ script: s, title, language }) {
+  const langBadge = (language && language !== 'English')
+    ? ` <span class="badge badge-blue" style="vertical-align:middle;font-size:.7rem">${escapeHTML(language)}</span>`
+    : '';
+  $('script-title').innerHTML = escapeHTML(title) + langBadge;
+
+  setText('s-hook',      s.hook.text);
+  setText('s-hook-dir',  '📌 ' + s.hook.direction);
+  setText('s-intro',     s.intro.text);
+  setText('s-intro-dir', '📌 ' + s.intro.direction);
+
+  $('s-body').innerHTML = s.body.map((sec, i) => `
+    <div class="script-part">
+      <div class="part-label">📖 ${escapeHTML(sec.section)}</div>
+      <div class="part-text">${escapeHTML(sec.text)}</div>
+      <div class="part-dir">📌 ${escapeHTML(sec.direction)}</div>
+    </div>
+    ${i < s.body.length - 1 ? '<div class="divider"></div>' : ''}
+  `).join('');
+
+  setText('s-cta',       s.cta.text);
+  setText('s-cta-dir',   '📌 ' + s.cta.direction);
+  setText('s-outro',     s.outro.text);
+  setText('s-outro-dir', '📌 ' + s.outro.direction);
+
+  // Store for potential use in Video Creator
+  window._lastScript = { text: flattenScript(s), language };
+
+  show('script-results');
+}
+
+// Flatten structured script into a single text block for the creator
+function flattenScript(s) {
+  const parts = [s.hook.text, s.intro.text];
+  (s.body || []).forEach(sec => parts.push(sec.text));
+  parts.push(s.cta.text, s.outro.text);
+  return parts.join('\n\n');
+}
+
+// Transfer generated script to Video Creator tab
+function useScriptInCreator() {
+  if (!window._lastScript) { toast('No script available yet.', 'error'); return; }
+  creatorScript   = window._lastScript.text;
+  creatorLanguage = window._lastScript.language || 'English';
+  switchTab('creator');
+  goToWizardStep(1);
+  $('creator-script').value = creatorScript;
+  updateScriptMeta();
+  selectSource('generated');
+  selectCreatorLang(creatorLanguage);
+  show('generated-notice');
+}
+
+// ─── Growth Hacks ─────────────────────────────────────────────────────────────
+
+async function loadGrowthHacks() {
+  hide('growth-empty');
+  hide('growth-results');
+  hide('growth-error');
+  show('growth-loading');
+
+  try {
+    const res  = await fetch('/api/growth-hacks');
+    const data = await res.json();
+    if (!res.ok) {
+      showGrowthErr(data.error || 'Something went wrong.'); return;
+    }
+    renderGrowthHacks(data);
+    logActivity('Generated 10 growth hacks');
+    toast('Growth hacks ready!', 'success');
+  } catch {
+    showGrowthErr('Network error — please check your connection.');
+  } finally {
+    hide('growth-loading');
+  }
+}
+
+function renderGrowthHacks(data) {
+  const hacks = Array.isArray(data.hacks) ? data.hacks : [];
+  if (!hacks.length) { showGrowthErr('No hacks returned. Please try again.'); return; }
+
+  const catCls = {
+    'Posting Strategy': 'chip-purple', 'Thumbnail':     'chip-green',
+    'Title Formula':    'chip-green',  'Engagement':    'chip-purple',
+    'Collaboration':    'chip-green',  'Monetisation':  'chip-amber',
+  };
+
+  $('growth-hacks-list').innerHTML = hacks.map((hack, i) => {
+    const cls = catCls[hack.category] || 'chip-purple';
+    return `
+      <div class="card">
+        <div style="display:flex;gap:1rem;align-items:flex-start">
+          <div class="hack-num">${i+1}</div>
+          <div style="flex:1">
+            <div style="font-size:.9rem;font-weight:700;margin-bottom:.35rem">${escapeHTML(hack.title)}</div>
+            <p class="prose" style="margin-bottom:.55rem">${escapeHTML(hack.description)}</p>
+            <span class="chip ${cls}">${escapeHTML(hack.category)}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  growthHasResults = true;
+  show('growth-results');
+  hide('growth-empty');
+}
+
+function showGrowthErr(msg) {
+  const el = $('growth-error');
+  el.textContent = '⚠️  ' + msg;
+  show('growth-error');
+  show('growth-empty');
+}
+
+// ─── Error helpers ────────────────────────────────────────────────────────────
+
+function showSectionError(section, msg) {
+  const el = $(section + '-error');
+  if (!el) return;
+  el.textContent = '⚠️  ' + msg;
+  show(section + '-error');
+  if (section === 'trending') show('trending-empty');
+  toast(msg, 'error');
+}
+
+// ─── Video Creator — Wizard Navigation ───────────────────────────────────────
+
+function goToWizardStep(n) {
+  // n = 1..4
+  document.querySelectorAll('.wizard-panel').forEach((p, i) =>
+    p.classList.toggle('active', i === n - 1)
+  );
+  for (let i = 1; i <= 4; i++) {
+    const stepEl = $('wstep-' + (i-1));
+    const circ   = $('wcirc-' + (i-1));
+    if (i < n)  { stepEl.className = 'wizard-step done';   circ.textContent = '✓'; }
+    if (i === n){ stepEl.className = 'wizard-step active'; circ.textContent = i;   }
+    if (i > n)  { stepEl.className = 'wizard-step';        circ.textContent = i;   }
+  }
+}
+
+function creatorNext(currentStep) {
+  // Validate before moving forward
+  if (currentStep === 1) {
+    creatorScript = $('creator-script').value.trim();
+    if (!creatorScript) { toast('Please enter a script first.', 'error'); return; }
+    goToWizardStep(2);
+    if (!$('avatar-section').classList.contains('was-loaded')) loadAvatars();
+    updateEstCredits();
+  } else if (currentStep === 2) {
+    if (!selectedAvatarId) { toast('Please select an avatar first.', 'error'); return; }
+    if (!selectedVoiceId)  { toast('Please select a voice first.',  'error'); return; }
+    goToWizardStep(3);
+    updateGenSummary();
+  } else if (currentStep === 3) {
+    goToWizardStep(4);
+    runClaudeReview();
+  }
+}
+
+function creatorBack(currentStep) {
+  if (currentStep > 1) goToWizardStep(currentStep - 1);
+}
+
+// ─── Video Creator — Step 1 helpers ──────────────────────────────────────────
+
+function selectSource(src) {
+  $('src-manual').classList.toggle('active',    src === 'manual');
+  $('src-generated').classList.toggle('active', src === 'generated');
+}
+
+function selectCreatorLang(lang) {
+  creatorLanguage = lang;
+  ['English','Hindi','Hinglish'].forEach(l => {
+    const btn = $('clang-' + l);
+    if (btn) btn.classList.toggle('active', l === lang);
+  });
+}
+
+function updateScriptMeta() {
+  const txt  = $('creator-script').value;
+  const chars = txt.length;
+  // Rough estimate: 150 words per minute, 5 chars per word
+  const words   = Math.round(chars / 5);
+  const seconds = Math.round((words / 150) * 60);
+  const display = seconds >= 60
+    ? Math.floor(seconds/60) + ' min ' + (seconds%60) + ' sec'
+    : seconds + ' sec';
+  setText('char-count',   chars);
+  setText('est-duration', display);
+  updateEstCredits();
+}
+
+function updateEstCredits() {
+  const txt  = $('creator-script').value;
+  const words   = Math.round(txt.length / 5);
+  const seconds = Math.round((words / 150) * 60);
+  setText('est-credits', '~' + Math.max(5, seconds));
+}
+
+// ─── Video Creator — Step 2: Avatars & Voices ────────────────────────────────
+
+async function loadAvatars() {
+  show('avatar-loading');
+  hide('avatar-error');
+  hide('avatar-section');
+
+  try {
+    const [avatarRes, voiceRes] = await Promise.all([
+      fetch('/api/heygen/avatars'),
+      fetch('/api/heygen/voices')
+    ]);
+
+    const avatarData = await avatarRes.json();
+    const voiceData  = await voiceRes.json();
+
+    if (!avatarRes.ok) throw new Error(avatarData.error || 'Failed to load avatars.');
+    if (!voiceRes.ok)  throw new Error(voiceData.error  || 'Failed to load voices.');
+
+    renderAvatars(avatarData);
+    renderVoices(voiceData);
+
+    $('avatar-section').classList.add('was-loaded');
+    hide('avatar-loading');
+    show('avatar-section');
+  } catch (err) {
+    hide('avatar-loading');
+    const el = $('avatar-error');
+    el.textContent = '⚠️  ' + err.message + ' — check your HEYGEN_API_KEY in .env';
+    show('avatar-error');
+  }
+}
+
+function renderAvatars(data) {
+  // HeyGen v2 returns: { data: { avatars: [...] } }
+  const avatars = data?.data?.avatars || data?.avatars || [];
+
+  if (!avatars.length) {
+    $('avatar-grid').innerHTML = `<p style="font-size:.82rem;color:var(--muted);grid-column:1/-1">No avatars found in your HeyGen account. Create one at heygen.com.</p>`;
+    return;
   }
 
-  function showGrowthError(msg) {
-    const el = $('growth-error');
-    el.textContent = '⚠️  ' + msg;
-    show('growth-error');
-    show('growth-empty');
+  $('avatar-grid').innerHTML = avatars.map(av => `
+    <div class="avatar-card"
+         data-id="${escapeAttr(av.avatar_id)}"
+         data-name="${escapeAttr(av.avatar_name || av.name || 'Avatar')}"
+         onclick="selectAvatar(this)">
+      <img src="${escapeAttr(av.preview_image_url || av.thumbnail_url || '')}"
+           alt="${escapeAttr(av.avatar_name || 'Avatar')}"
+           onerror="this.src=''" />
+      <div class="avatar-name">${escapeHTML(av.avatar_name || av.name || 'Avatar')}</div>
+    </div>`).join('');
+}
+
+function selectAvatar(el) {
+  document.querySelectorAll('.avatar-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedAvatarId   = el.dataset.id;
+  selectedAvatarName = el.dataset.name;
+  updateEstCredits();
+}
+
+function renderVoices(data) {
+  // HeyGen v2 returns: { data: { voices: [...] } }
+  const voices = data?.data?.voices || data?.voices || [];
+  const sel = $('voice-select');
+
+  if (!voices.length) {
+    sel.innerHTML = '<option value="">No voices found</option>';
+    return;
   }
 
-  // ── XSS-safe escaping ─────────────────────────────────────────────────────
+  sel.innerHTML = '<option value="">Choose a voice…</option>' +
+    voices.slice(0, 80).map(v =>
+      `<option value="${escapeAttr(v.voice_id)}" data-name="${escapeAttr(v.name || v.voice_id)}">
+        ${escapeHTML(v.name || v.voice_id)} — ${escapeHTML(v.language || '')} ${escapeHTML(v.gender || '')}
+      </option>`
+    ).join('');
 
-  function escapeHTML(str) {
-    return String(str)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
+  sel.addEventListener('change', () => {
+    const opt = sel.options[sel.selectedIndex];
+    selectedVoiceId   = sel.value;
+    selectedVoiceName = opt ? opt.dataset.name : sel.value;
+  });
+}
 
-  function escapeAttr(str) {
-    return String(str)
-      .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;').replace(/</g, '&lt;');
+// ─── Video Creator — Step 3: Generate ────────────────────────────────────────
+
+function selectFormat(el, fmt) {
+  document.querySelectorAll('.format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedFormat = fmt;
+}
+
+function updateGenSummary() {
+  setText('sum-avatar', 'Avatar: ' + (selectedAvatarName || 'None'));
+  setText('sum-voice',  'Voice: '  + (selectedVoiceName  || 'None'));
+  setText('sum-lang',   'Language: ' + creatorLanguage);
+  const chars = ($('creator-script').value || '').length;
+  setText('sum-chars',  'Script: ' + chars + ' chars');
+}
+
+async function startGeneration() {
+  hide('gen-idle');
+  hide('gen-done');
+  hide('gen-error');
+  show('gen-progress');
+  setText('gen-status-text', 'Submitting to HeyGen…');
+  $('gen-progress-bar').style.width = '10%';
+
+  try {
+    const scriptText = $('creator-script').value.trim();
+    const res  = await fetch('/api/heygen/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        avatar_id:   selectedAvatarId,
+        voice_id:    selectedVoiceId,
+        script_text: scriptText,
+        format:      selectedFormat
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'HeyGen rejected the request.');
+
+    // Extract video_id from HeyGen response
+    currentVideoId = data?.data?.video_id || data?.video_id || '';
+    if (!currentVideoId) throw new Error('HeyGen returned no video_id. Check API response.');
+
+    toast('Video submitted! Polling for status…', 'success');
+    $('gen-progress-bar').style.width = '20%';
+    setText('gen-status-text', 'Queued…');
+    startPolling();
+  } catch (err) {
+    hide('gen-progress');
+    show('gen-idle');
+    const el = $('gen-error');
+    el.textContent = '⚠️  ' + err.message;
+    show('gen-error');
+    toast(err.message, 'error');
   }
+}
+
+function startPolling() {
+  let attempts = 0;
+  pollInterval = setInterval(async () => {
+    attempts++;
+    const progress = Math.min(20 + attempts * 8, 90);
+    $('gen-progress-bar').style.width = progress + '%';
+
+    try {
+      const res  = await fetch('/api/heygen/status/' + encodeURIComponent(currentVideoId));
+      const data = await res.json();
+      const status = data?.data?.status || data?.status || 'unknown';
+
+      if (status === 'completed') {
+        clearInterval(pollInterval);
+        $('gen-progress-bar').style.width = '100%';
+        setText('gen-status-text', 'Completed ✅');
+
+        const videoUrl = data?.data?.video_url || data?.video_url || '';
+        showVideoPreview(videoUrl);
+        bumpStat('ai_videos');
+        bumpStat('credits', Math.ceil(($('creator-script').value.length / 5 / 150) * 60));
+        logActivity('Created AI video with HeyGen');
+        toast('Video ready!', 'success');
+
+      } else if (status === 'failed') {
+        clearInterval(pollInterval);
+        setText('gen-status-text', 'Failed ❌');
+        const err = data?.data?.error || 'Video generation failed.';
+        const el = $('gen-error');
+        el.textContent = '⚠️  ' + err;
+        show('gen-error');
+        hide('gen-progress');
+        show('gen-idle');
+        toast(err, 'error');
+
+      } else {
+        // Still processing
+        const labels = { queued: 'Queued…', processing: 'Processing…' };
+        setText('gen-status-text', labels[status] || 'Processing…');
+      }
+
+      // Timeout after 50 polls (~8 mins)
+      if (attempts > 50) {
+        clearInterval(pollInterval);
+        setText('gen-status-text', 'Timed out — check HeyGen dashboard.');
+        hide('gen-progress');
+        show('gen-idle');
+      }
+    } catch {
+      // Ignore transient poll errors
+    }
+  }, 10000); // 10 second interval
+}
+
+function showVideoPreview(videoUrl) {
+  hide('gen-progress');
+  show('gen-done');
+  const wrap = $('video-preview-wrap');
+  if (videoUrl) {
+    wrap.innerHTML = `<video controls src="${escapeAttr(videoUrl)}" style="max-width:100%;border-radius:10px;max-height:400px"></video>`;
+    const dlBtn = $('video-download-btn');
+    dlBtn.href = videoUrl;
+    dlBtn.download = 'ycid-video.mp4';
+  } else {
+    wrap.innerHTML = `<p style="color:var(--muted);font-size:.82rem">Preview not available — check HeyGen dashboard for the video.</p>`;
+  }
+}
+
+// ─── Video Creator — Step 4: Claude Review ───────────────────────────────────
+
+async function runClaudeReview() {
+  show('review-loading');
+  hide('review-error');
+  hide('review-results');
+
+  try {
+    const scriptText = $('creator-script').value.trim();
+    const res  = await fetch('/api/review-script', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ script_text: scriptText, language: creatorLanguage })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Claude review failed.');
+    renderReview(data.review);
+    toast('AI review complete!', 'success');
+  } catch (err) {
+    const el = $('review-error');
+    el.textContent = '⚠️  ' + err.message;
+    show('review-error');
+    toast(err.message, 'error');
+  } finally {
+    hide('review-loading');
+  }
+}
+
+function renderReview(r) {
+  // Engagement score ring
+  const score = r.engagement_score || 0;
+  const color = score >= 7 ? '#10b981' : score >= 5 ? '#f59e0b' : '#ef4444';
+  $('review-score-ring').style.background = `conic-gradient(${color} ${score*36}deg, rgba(255,255,255,.06) 0deg)`;
+  $('review-score-ring').style.boxShadow  = `0 0 24px ${color}44`;
+  $('review-score-num').textContent = score;
+  $('review-score-num').style.color = color;
+
+  // Hook strength pill
+  const hookClass = {
+    'Weak': 'hook-weak', 'Average': 'hook-average',
+    'Strong': 'hook-strong', 'Viral': 'hook-viral'
+  };
+  const hs = r.hook_strength || 'Average';
+  $('review-hook-pill').innerHTML = `<span class="hook-pill ${hookClass[hs] || 'hook-average'}">${escapeHTML(hs)}</span>`;
+  setText('review-hook-exp', r.hook_explanation || '');
+
+  setText('review-title',     r.suggested_title      || '');
+  setText('review-thumb-text', r.thumbnail_text      || '');
+  setText('review-post-time', r.recommended_posting_time || '');
+  setText('review-reach',     r.estimated_reach      || '');
+  setText('review-description', r.suggested_description || '');
+
+  show('review-results');
+}
+
+function resetCreator() {
+  clearInterval(pollInterval);
+  // Reset all creator state
+  creatorScript = ''; selectedAvatarId = ''; selectedAvatarName = '';
+  selectedVoiceId = ''; selectedVoiceName = ''; currentVideoId = '';
+  $('creator-script').value = '';
+  updateScriptMeta();
+  hide('generated-notice');
+  // Reset step UI
+  hide('gen-done'); show('gen-idle'); hide('gen-error');
+  // Go back to step 1
+  goToWizardStep(1);
+  toast('Ready to create another video!', 'success');
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+async function checkApiStatus() {
+  try {
+    const res  = await fetch('/debug');
+    const data = await res.json();
+
+    const ytOk = data.YOUTUBE_API_KEY === 'loaded';
+    const aiOk = data.YT_ANTHROPIC_API_KEY === 'loaded';
+
+    $('setting-yt-status').textContent = ytOk ? '✅ Loaded' : '❌ Missing';
+    $('setting-yt-status').className   = ytOk ? 'key-status-ok' : 'key-status-err';
+    $('setting-ai-status').textContent = aiOk ? '✅ Loaded' : '❌ Missing';
+    $('setting-ai-status').className   = aiOk ? 'key-status-ok' : 'key-status-err';
+
+    // Update top bar badge
+    const allOk = ytOk && aiOk;
+    $('api-badge').textContent = allOk ? '✓ Claude + YouTube' : '⚠ API Key Missing';
+    $('api-badge').style.background = allOk
+      ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.12)';
+    $('api-badge').style.borderColor = allOk
+      ? 'rgba(16,185,129,.3)' : 'rgba(239,68,68,.3)';
+    $('api-badge').style.color = allOk ? '#6ee7b7' : '#fca5a5';
+  } catch {
+    // Silently fail if debug endpoint is unavailable
+  }
+}
+
+// ─── Keyboard shortcuts ───────────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => {
+  // Escape closes modal and sidebar
+  if (e.key === 'Escape') {
+    closeModal();
+    closeSidebar();
+  }
+  // Alt + 1-5 for quick tab navigation
+  if (e.altKey) {
+    const altMap = { '1': 'analyser', '2': 'channel', '3': 'trending', '4': 'creator', '5': 'growth' };
+    if (altMap[e.key]) {
+      e.preventDefault();
+      switchTab(altMap[e.key]);
+    }
+  }
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+(function init() {
+  refreshDashboardStats();
+  renderActivityFeed();
+  checkApiStatus();
+})();
 </script>
 </body>
 </html>
