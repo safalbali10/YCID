@@ -637,11 +637,19 @@ def generate_heygen_video():
     Returns: the HeyGen job response including video_id.
     """
     try:
-        data        = request.json
+        data        = request.json or {}
         avatar_id   = data.get('avatar_id', '')
         voice_id    = data.get('voice_id', '')
         script_text = data.get('script_text', '')
         fmt         = data.get('format', 'shorts')
+
+        # Validate required fields before calling HeyGen
+        if not avatar_id:
+            return jsonify({'error': 'avatar_id is missing from request.'}), 400
+        if not voice_id:
+            return jsonify({'error': 'voice_id is missing from request.'}), 400
+        if not script_text:
+            return jsonify({'error': 'script_text is empty.'}), 400
 
         # Shorts = vertical 1080×1920, long-form = horizontal 1920×1080
         width, height = (1080, 1920) if fmt == 'shorts' else (1920, 1080)
@@ -666,16 +674,34 @@ def generate_heygen_video():
             "dimension": {"width": width, "height": height}
         }
 
+        print(f"[HeyGen] POST /v2/video/generate — avatar={avatar_id} voice={voice_id} "
+              f"format={fmt} ({width}x{height}) script_len={len(script_text)}", flush=True)
+
         resp = requests.post(
             f'{HEYGEN_BASE}/v2/video/generate',
             headers=_heygen_headers(),
             json=payload, timeout=30
         )
-        resp.raise_for_status()
-        return jsonify(resp.json())
+
+        # Log HeyGen's raw response regardless of status code
+        print(f"[HeyGen] response HTTP {resp.status_code}: {resp.text[:500]}", flush=True)
+
+        # Don't use raise_for_status — instead extract HeyGen's own error message
+        # so the frontend can display exactly what HeyGen said went wrong
+        heygen_data = resp.json()
+        heygen_error = heygen_data.get('error') or heygen_data.get('message') or heygen_data.get('msg')
+        if resp.status_code != 200 or heygen_error:
+            error_text = str(heygen_error) if heygen_error else f'HeyGen returned HTTP {resp.status_code}'
+            print(f"[HeyGen] ERROR: {error_text}", flush=True)
+            return jsonify({'error': error_text}), 500
+
+        return jsonify(heygen_data)
+
     except requests.RequestException as e:
-        return jsonify({'error': f'HeyGen API error: {e}'}), 500
+        print(f"[HeyGen] RequestException: {e}", flush=True)
+        return jsonify({'error': f'Network error reaching HeyGen: {e}'}), 500
     except Exception as e:
+        print(f"[HeyGen] Unexpected error: {e}", flush=True)
         return jsonify({'error': f'Unexpected error: {e}'}), 500
 
 

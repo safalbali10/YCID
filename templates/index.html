@@ -2025,7 +2025,9 @@ async function loadAvatars() {
     if (!voiceRes.ok)  throw new Error(voiceData.error  || 'Failed to load voices.');
 
     renderAvatars(avatarData);
-    renderVoices(voiceData);
+    // Pass the first custom avatar name so renderVoices can auto-match the Digital Twin voice
+    const firstCustomName = avatarData.custom_avatars?.[0]?.avatar_name || '';
+    renderVoices(voiceData, firstCustomName);
 
     $('avatar-section').classList.add('was-loaded');
     hide('avatar-loading');
@@ -2095,7 +2097,7 @@ function toggleStockAvatars() {
   icon.textContent = isHidden ? '▲ Hide' : '▼ Show';
 }
 
-function renderVoices(data) {
+function renderVoices(data, customAvatarName) {
   // HeyGen v2 returns: { data: { voices: [...] } }
   const voices = data?.data?.voices || data?.voices || [];
   const sel = $('voice-select');
@@ -2105,18 +2107,34 @@ function renderVoices(data) {
     return;
   }
 
-  sel.innerHTML = '<option value="">Choose a voice…</option>' +
-    voices.slice(0, 80).map(v =>
-      `<option value="${escapeAttr(v.voice_id)}" data-name="${escapeAttr(v.name || v.voice_id)}">
-        ${escapeHTML(v.name || v.voice_id)} — ${escapeHTML(v.language || '')} ${escapeHTML(v.gender || '')}
-      </option>`
-    ).join('');
+  sel.innerHTML = voices.slice(0, 80).map(v =>
+    `<option value="${escapeAttr(v.voice_id)}" data-name="${escapeAttr(v.name || v.voice_id)}">
+      ${escapeHTML(v.name || v.voice_id)} — ${escapeHTML(v.language || '')} ${escapeHTML(v.gender || '')}
+    </option>`
+  ).join('');
 
-  sel.addEventListener('change', () => {
+  // Try to find a voice whose name matches the custom avatar name (Digital Twin voices
+  // are named identically to the avatar, e.g. "Safal Bali"). Fall back to index 0.
+  let autoIdx = 0;
+  if (customAvatarName) {
+    const lower = customAvatarName.toLowerCase();
+    const match = Array.from(sel.options).findIndex(
+      o => o.text.toLowerCase().includes(lower)
+    );
+    if (match !== -1) autoIdx = match;
+  }
+  sel.selectedIndex = autoIdx;
+
+  // Sync state variables immediately so the user never has to touch the dropdown
+  function syncVoice() {
     const opt = sel.options[sel.selectedIndex];
-    selectedVoiceId   = sel.value;
-    selectedVoiceName = opt ? opt.dataset.name : sel.value;
-  });
+    selectedVoiceId   = opt ? opt.value     : '';
+    selectedVoiceName = opt ? opt.dataset.name : '';
+  }
+  syncVoice();
+
+  // Keep state in sync when user manually changes the dropdown
+  sel.addEventListener('change', syncVoice);
 }
 
 // ─── Video Creator — Step 3: Generate ────────────────────────────────────────
@@ -2135,7 +2153,33 @@ function updateGenSummary() {
   setText('sum-chars',  'Script: ' + chars + ' chars');
 }
 
+function extractErrorMessage(err) {
+  // Prevent "[object Object]" from ever reaching the UI
+  if (!err) return 'Unknown error.';
+  if (typeof err === 'string') return err;
+  if (err instanceof Error) return err.message || String(err);
+  if (typeof err === 'object') {
+    return err.message || err.error || err.detail || JSON.stringify(err);
+  }
+  return String(err);
+}
+
 async function startGeneration() {
+  // Pre-flight validation — catch missing selections before touching the API
+  if (!selectedAvatarId) {
+    toast('Please select an avatar first.', 'error');
+    return;
+  }
+  if (!selectedVoiceId) {
+    toast('Please select a voice first.', 'error');
+    return;
+  }
+  const scriptText = $('creator-script').value.trim();
+  if (!scriptText) {
+    toast('Script is empty — go back to Step 1 and enter your script.', 'error');
+    return;
+  }
+
   hide('gen-idle');
   hide('gen-done');
   hide('gen-error');
@@ -2144,23 +2188,32 @@ async function startGeneration() {
   $('gen-progress-bar').style.width = '10%';
 
   try {
-    const scriptText = $('creator-script').value.trim();
+    const payload = {
+      avatar_id:   selectedAvatarId,
+      voice_id:    selectedVoiceId,
+      script_text: scriptText,
+      format:      selectedFormat
+    };
+
     const res  = await fetch('/api/heygen/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        avatar_id:   selectedAvatarId,
-        voice_id:    selectedVoiceId,
-        script_text: scriptText,
-        format:      selectedFormat
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'HeyGen rejected the request.');
 
-    // Extract video_id from HeyGen response
+    if (!res.ok) {
+      throw new Error(extractErrorMessage(data.error || data));
+    }
+
+    // Extract video_id — HeyGen returns { data: { video_id: "…" } }
     currentVideoId = data?.data?.video_id || data?.video_id || '';
-    if (!currentVideoId) throw new Error('HeyGen returned no video_id. Check API response.');
+    if (!currentVideoId) {
+      throw new Error(
+        'HeyGen accepted the request but returned no video_id. ' +
+        'Full response: ' + JSON.stringify(data)
+      );
+    }
 
     toast('Video submitted! Polling for status…', 'success');
     $('gen-progress-bar').style.width = '20%';
@@ -2169,10 +2222,11 @@ async function startGeneration() {
   } catch (err) {
     hide('gen-progress');
     show('gen-idle');
+    const msg = extractErrorMessage(err);
     const el = $('gen-error');
-    el.textContent = '⚠️  ' + err.message;
+    el.textContent = '⚠️  ' + msg;
     show('gen-error');
-    toast(err.message, 'error');
+    toast(msg, 'error');
   }
 }
 
